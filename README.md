@@ -138,6 +138,11 @@ Companion and backdrop artwork was created specifically for Gieligotchi with
 AI-assisted tools. Familiar toy and partyhat graphics are rendered from
 RuneLite-provided Old School RuneScape item assets at runtime.
 
+We would love to collaborate with Old School RuneScape artists who are
+interested in replacing or refining the AI-assisted imagery throughout
+Gieligotchi. If that sounds like you, please reach out through the
+[Gieligotchi Discord](https://discord.gg/dP9WN62QQE).
+
 The idea of rewarding ordinary play with a companion collection was inspired by
 <a href="https://github.com/Azderi/osrs-tcg">OSRS TCG</a> by Az. Gieligotchi is
 an independently designed and implemented project and does not use OSRS TCG code
