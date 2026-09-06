@@ -9,12 +9,16 @@ import com.gieligotchi.model.ProfileState;
 import com.gieligotchi.model.RelationshipStage;
 import com.gieligotchi.model.SpeciesRarity;
 import com.gieligotchi.model.Toy;
+import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 public class JourneyModelTest
 {
+	private static final AtomicInteger TEST_REGION = new AtomicInteger(20_000);
+
 	@Test
 	public void wishesBuildPermanentRelationshipAndToyMemory()
 	{
@@ -56,6 +60,30 @@ public class JourneyModelTest
 			.anyMatch(memory -> "Legacy companion".equals(memory.getTitle())));
 	}
 
+	@Test
+	public void questOrClueWishIgnoresOtherMajorChallenges() throws Exception
+	{
+		CompanionInstance companion = companion();
+		CompanionWish wish = new CompanionWish(CompanionWish.Type.ADVENTURE, "Complete a quest or clue", 1);
+		setWish(companion, wish);
+		companion.recordMajorChallenge("Theatre of Blood");
+		assertFalse(wish.isComplete());
+		companion.recordQuestOrClue("Cook's Assistant");
+		assertTrue(wish.isComplete());
+	}
+
+	@Test
+	public void explorationWishOnlyAdvancesInANewArea() throws Exception
+	{
+		CompanionInstance companion = companion();
+		CompanionWish wish = new CompanionWish(CompanionWish.Type.EXPLORATION, "Visit a new area", 1);
+		setWish(companion, wish);
+		companion.recordQuestOrClue("Cook's Assistant");
+		assertFalse(wish.isComplete());
+		companion.recordRegionVisit(12_345);
+		assertTrue(wish.isComplete());
+	}
+
 	private static CompanionInstance companion()
 	{
 		return CompanionInstance.from(new HatchReceipt("egg", EggTier.COMMON, "soup",
@@ -68,9 +96,17 @@ public class JourneyModelTest
 		{
 			case COMBAT: companion.recordNpcKill("Test foe", (int) wish.getTarget()); break;
 			case SKILLING: companion.recordSkill("WOODCUTTING", wish.getTarget()); break;
-			case ADVENTURE: companion.recordAdventure("Test adventure"); break;
+			case ADVENTURE: companion.recordQuestOrClue("Test quest"); break;
+			case EXPLORATION: companion.recordRegionVisit(TEST_REGION.incrementAndGet()); break;
 			case PLAY: companion.recordGame(true); break;
 			default: throw new AssertionError();
 		}
+	}
+
+	private static void setWish(CompanionInstance companion, CompanionWish wish) throws Exception
+	{
+		Field field = CompanionInstance.class.getDeclaredField("wish");
+		field.setAccessible(true);
+		field.set(companion, wish);
 	}
 }

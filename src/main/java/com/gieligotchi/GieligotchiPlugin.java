@@ -158,6 +158,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Override
 	protected void shutDown()
 	{
+		stateService.backup();
 		mouseManager.unregisterMouseListener(this);
 		stateService.removeListener(profileListener);
 		overlayManager.remove(overlay);
@@ -204,6 +205,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		if (event.getGameState() == GameState.LOGGED_IN) { loadCurrentProfile(); }
 		else if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
+			stateService.backup();
 			loadedProfileKey = null;
 			welcomeOpening = false;
 			skillBaselinesSynchronized = false;

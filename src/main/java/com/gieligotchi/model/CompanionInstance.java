@@ -123,10 +123,16 @@ public class CompanionInstance
 		}
 	}
 
-	public void recordAdventure(String label)
+	public void recordQuestOrClue(String label)
 	{
 		addPersonalityPoint(CompanionPersonality.ADVENTUROUS, 2);
 		progressWish(CompanionWish.Type.ADVENTURE, 1);
+		if (label != null && !label.isEmpty()) { addMemoryOnce("Adventure", label); }
+	}
+
+	public void recordMajorChallenge(String label)
+	{
+		addPersonalityPoint(CompanionPersonality.ADVENTUROUS, 2);
 		if (label != null && !label.isEmpty()) { addMemoryOnce("Adventure", label); }
 	}
 
@@ -135,7 +141,7 @@ public class CompanionInstance
 		if (regionId <= 0 || regionsVisited.contains(regionId)) { return; }
 		regionsVisited.add(regionId);
 		addPersonalityPoint(CompanionPersonality.ADVENTUROUS, 1);
-		progressWish(CompanionWish.Type.ADVENTURE, 1);
+		progressWish(CompanionWish.Type.EXPLORATION, 1);
 		if (regionsVisited.size() % 10 == 0)
 		{
 			addMemoryOnce("Explorer", "Visited " + regionsVisited.size() + " regions together");
@@ -220,7 +226,8 @@ public class CompanionInstance
 		{
 			case COMBAT: return new CompanionWish(type, "Defeat foes worth " + (80 + affectionHearts * 3) + " combat levels", 80 + affectionHearts * 3L);
 			case SKILLING: return new CompanionWish(type, "Earn " + (4_000 + affectionHearts * 100) + " XP", 4_000 + affectionHearts * 100L);
-			case ADVENTURE: return new CompanionWish(type, "Complete a quest, clue or major challenge", 1);
+			case ADVENTURE: return new CompanionWish(type, "Complete a quest or clue", 1);
+			case EXPLORATION: return new CompanionWish(type, "Visit a new area", 1);
 			default: return new CompanionWish(type, "Win a round of Higher or Lower", 1);
 		}
 	}
@@ -251,6 +258,7 @@ public class CompanionInstance
 			case COMBAT: return CompanionPersonality.FIERCE;
 			case SKILLING: return CompanionPersonality.INDUSTRIOUS;
 			case ADVENTURE: return CompanionPersonality.ADVENTUROUS;
+			case EXPLORATION: return CompanionPersonality.ADVENTUROUS;
 			default: return CompanionPersonality.PLAYFUL;
 		}
 	}
