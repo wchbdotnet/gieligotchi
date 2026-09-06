@@ -97,7 +97,8 @@ Gieligotchi is meant to sit alongside the game, not compete with it.
 
 ## Privacy and fair play
 
-All Gieligotchi progress is stored locally through RuneLite's profile settings.
+All Gieligotchi progress is stored locally in a profile file managed by the
+plugin.
 The plugin does not ask for RuneScape credentials, send your companion data to a
 third-party server, inject input or automate gameplay. It listens to RuneLite
 events only to recognise ordinary play and update its own cosmetic companion.
@@ -107,9 +108,9 @@ no gameplay advantage.
 
 ## Installation status
 
-Gieligotchi is currently being prepared for RuneLite Plugin Hub review. It is
-not yet available through the Plugin Hub. This repository contains the source
-and development build while submission materials are being finalised.
+Gieligotchi has been submitted for RuneLite Plugin Hub review. It is not yet
+available through the Plugin Hub; its submission can be followed in
+[Plugin Hub pull request #16119](https://github.com/runelite/plugin-hub/pull/16119).
 
 ## Community
 
