@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icon.png" width="48" height="48" alt="Gieligotchi icon">
+  <img src="icon.png" width="96" height="96" alt="Gieligotchi icon">
 </p>
 
 <h1 align="center">Gieligotchi</h1>
@@ -18,11 +18,11 @@
 </p>
 
 <p align="center">
-  <img src="src/main/resources/com/gieligotchi/images/pets/pet_kraken/base.png" width="88" alt="Pet Kraken companion">
-  <img src="src/main/resources/com/gieligotchi/images/pets/youngllef/frost.png" width="88" alt="Youngllef companion">
   <img src="src/main/resources/com/gieligotchi/images/pets/little_nightmare/base.png" width="88" alt="Little Nightmare companion">
-  <img src="src/main/resources/com/gieligotchi/images/pets/tzrek_jad/base.png" width="88" alt="TzRek-Jad companion">
-  <img src="src/main/resources/com/gieligotchi/images/pets/tumekens_guardian/base.png" width="88" alt="Tumeken's Guardian companion">
+  <img src="src/main/resources/com/gieligotchi/images/pets/olmlet/base.png" width="88" alt="Olmlet companion">
+  <img src="src/main/resources/com/gieligotchi/images/pets/lil_zik/obsidian.png" width="88" alt="Obsidian Lil' Zik companion">
+  <img src="src/main/resources/com/gieligotchi/images/pets/pet_kreearra/rose.png" width="88" alt="Rose Pet Kree'arra companion">
+  <img src="src/main/resources/com/gieligotchi/images/pets/nid/void.png" width="88" alt="Void Nid companion">
 </p>
 
 ## What is Gieligotchi?
