@@ -67,9 +67,9 @@ scene is inspired by the game while leaving a clear little place at its centre
 for your active companion.
 
 <p align="center">
-  <img src="src/main/resources/com/gieligotchi/images/backdrops/prifddinas.png" width="160" alt="Prifddinas companion backdrop">
-  <img src="src/main/resources/com/gieligotchi/images/backdrops/grand_exchange.png" width="160" alt="Grand Exchange companion backdrop">
-  <img src="src/main/resources/com/gieligotchi/images/backdrops/theatre_of_blood.png" width="160" alt="Theatre of Blood companion backdrop">
+  <img src="src/main/resources/com/gieligotchi/images/backdrops/wilderness.png" width="160" alt="Wilderness companion backdrop">
+  <img src="src/main/resources/com/gieligotchi/images/backdrops/pollnivneach.png" width="160" alt="Pollnivneach companion backdrop">
+  <img src="src/main/resources/com/gieligotchi/images/backdrops/fortis_colosseum.png" width="160" alt="Fortis Colosseum companion backdrop">
   <img src="src/main/resources/com/gieligotchi/images/backdrops/tombs_of_amascut.png" width="160" alt="Tombs of Amascut companion backdrop">
 </p>
 
