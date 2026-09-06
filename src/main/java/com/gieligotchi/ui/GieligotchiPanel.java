@@ -49,6 +49,7 @@ import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
@@ -79,6 +80,7 @@ public class GieligotchiPanel extends PluginPanel
 	private static final int BACKDROPS_PER_PAGE = 5;
 	private static final long TOY_PLAY_COOLDOWN_MILLIS = 5_000L;
 	private static final String DISCORD_INVITE = "https://discord.gg/dP9WN62QQE";
+	private static final boolean DEV_TOOLS_ENABLED = Boolean.getBoolean("gieligotchi.devTools");
 	private static final String HOME = "home";
 	private final GieligotchiStateService stateService;
 	private final PetCatalogue catalogue;
@@ -400,6 +402,11 @@ public class GieligotchiPanel extends PluginPanel
 		hint.setFont(FontManager.getRunescapeSmallFont());
 		hint.setForeground(new Color(0xD8D8D8));
 		home.add(hint);
+		if (DEV_TOOLS_ENABLED)
+		{
+			home.add(Box.createVerticalStrut(10));
+			home.add(buildDevTools(state));
+		}
 		if (state != null && !state.isWelcomeSeen())
 		{
 			home.add(Box.createVerticalStrut(12));
@@ -430,6 +437,66 @@ public class GieligotchiPanel extends PluginPanel
 		rebuildRules();
 		rebuildRarities();
 		display.repaint();
+	}
+
+	private JPanel buildDevTools(ProfileState state)
+	{
+		JPanel card = new JPanel();
+		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+		card.setBackground(new Color(0x2B2020));
+		card.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(new Color(0xC85D4A)), new EmptyBorder(8, 8, 8, 8)));
+		JLabel heading = new JLabel("DEV TOOLS · LOCAL ONLY");
+		heading.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
+		heading.setForeground(new Color(0xFF9B82));
+		heading.setAlignmentX(LEFT_ALIGNMENT);
+
+		JPanel progress = new JPanel(new GridLayout(1, 2, 4, 0));
+		progress.setOpaque(false);
+		JButton addXp = styledButton("+10K XP", 11f);
+		addXp.setEnabled(state != null && (state.getActiveEgg() != null || state.getActiveCompanion() != null));
+		addXp.setToolTipText("Award 10,000 Bonding XP to the active journey");
+		addXp.addActionListener(event -> stateService.devAwardBondingXp(10_000L));
+		JButton finish = styledButton(state != null && state.getActiveEgg() != null ? "Ready egg" : "Max companion", 11f);
+		finish.setEnabled(state != null && (state.getActiveEgg() != null || state.getActiveCompanion() != null));
+		finish.setToolTipText(state != null && state.getActiveEgg() != null
+			? "Complete and seal the active egg" : "Raise the active companion to level 99");
+		finish.addActionListener(event ->
+		{
+			ProfileState current = stateService.getState();
+			if (current != null && current.getActiveEgg() != null) { stateService.devReadyActiveEgg(); }
+			else { stateService.devMaxActiveCompanion(); }
+		});
+		progress.add(addXp);
+		progress.add(finish);
+
+		JPanel account = new JPanel(new GridLayout(1, 2, 4, 0));
+		account.setOpaque(false);
+		JButton points = styledButton("+10K GPts", 11f);
+		points.setEnabled(state != null);
+		points.setToolTipText("Grant 10,000 Gotchi Points for shop testing");
+		points.addActionListener(event -> stateService.devGrantGotchiPoints(10_000L));
+		JButton reset = styledButton("Reset dev save", 11f);
+		reset.setEnabled(state != null);
+		reset.setToolTipText("Reset only the isolated Gieligotchi DEV profile");
+		reset.addActionListener(event ->
+		{
+			int choice = JOptionPane.showConfirmDialog(this,
+				"Reset the isolated Gieligotchi DEV profile?\nThis cannot affect your normal RuneLite profile.",
+				"Reset dev save", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (choice == JOptionPane.YES_OPTION) { stateService.devResetProfile(); }
+		});
+		account.add(points);
+		account.add(reset);
+
+		card.add(heading);
+		card.add(Box.createVerticalStrut(6));
+		card.add(progress);
+		card.add(Box.createVerticalStrut(4));
+		card.add(account);
+		card.setAlignmentX(CENTER_ALIGNMENT);
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 104));
+		return card;
 	}
 
 	private JPanel buildWelcomeCard()

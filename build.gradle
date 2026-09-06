@@ -40,7 +40,8 @@ tasks.register('run', JavaExec) {
 	if (bundledJava.exists()) {
 		executable = bundledJava
 	}
-	jvmArgs '-ea', '-Djava.util.prefs.PreferencesFactory=com.gieligotchi.DevPreferencesFactory'
+	jvmArgs '-ea', '-Djava.util.prefs.PreferencesFactory=com.gieligotchi.DevPreferencesFactory',
+		'-Dgieligotchi.devTools=true'
 	args '--developer-mode', '--profile', 'Gieligotchi DEV'
 }
 

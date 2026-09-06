@@ -19,6 +19,7 @@ import net.runelite.api.Skill;
 public class GieligotchiStateService
 {
 	private static final long TOY_PLAY_COOLDOWN_MILLIS = 5_000L;
+	private static final String DEV_TOOLS_PROPERTY = "gieligotchi.devTools";
 	private final ProfileStore store;
 	private final HatchService hatchService;
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
@@ -256,6 +257,57 @@ public class GieligotchiStateService
 	public ProfileState getState() { return state; }
 	public void addListener(Runnable listener) { listeners.add(listener); }
 	public void removeListener(Runnable listener) { listeners.remove(listener); }
+
+	public synchronized void devAwardBondingXp(long amount)
+	{
+		if (!devToolsEnabled() || state == null || amount <= 0) { return; }
+		state.award(amount);
+		recordLevel99IfNeeded();
+		sealIfReady();
+		persist();
+		fireChanged();
+	}
+
+	public synchronized void devReadyActiveEgg()
+	{
+		if (!devToolsEnabled() || state == null || state.getActiveEgg() == null) { return; }
+		EggState egg = state.getActiveEgg();
+		state.award(Math.max(0L, egg.getTargetXp() - egg.getHatchXp()));
+		sealIfReady();
+		persist();
+		fireChanged();
+	}
+
+	public synchronized void devMaxActiveCompanion()
+	{
+		if (!devToolsEnabled() || state == null || state.getActiveCompanion() == null) { return; }
+		CompanionInstance companion = state.getActiveCompanion();
+		state.award(Math.max(0L, LevelCurve.xpForLevel(companion, 99) - companion.getLifetimeXp()));
+		recordLevel99IfNeeded();
+		persist();
+		fireChanged();
+	}
+
+	public synchronized void devGrantGotchiPoints(long amount)
+	{
+		if (!devToolsEnabled() || state == null || amount <= 0) { return; }
+		state.grantGotchiPoints(amount);
+		persist();
+		fireChanged();
+	}
+
+	public synchronized void devResetProfile()
+	{
+		if (!devToolsEnabled() || profileKey == null) { return; }
+		state = ProfileState.fresh(profileKey);
+		persist();
+		fireChanged();
+	}
+
+	private boolean devToolsEnabled()
+	{
+		return Boolean.getBoolean(DEV_TOOLS_PROPERTY);
+	}
 
 	private void sealIfReady()
 	{
