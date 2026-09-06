@@ -84,6 +84,20 @@ public class JourneyModelTest
 		assertTrue(wish.isComplete());
 	}
 
+	@Test
+	public void majorChallengeWishIsIndependentFromQuestAndExploration() throws Exception
+	{
+		CompanionInstance companion = companion();
+		CompanionWish wish = new CompanionWish(CompanionWish.Type.CHALLENGE,
+			"Complete a raid, Gauntlet or Barbarian Assault Wave 10", 1);
+		setWish(companion, wish);
+		companion.recordQuestOrClue("Cook's Assistant");
+		companion.recordRegionVisit(12_345);
+		assertFalse(wish.isComplete());
+		companion.recordMajorChallenge("Theatre of Blood");
+		assertTrue(wish.isComplete());
+	}
+
 	private static CompanionInstance companion()
 	{
 		return CompanionInstance.from(new HatchReceipt("egg", EggTier.COMMON, "soup",
@@ -97,6 +111,7 @@ public class JourneyModelTest
 			case COMBAT: companion.recordNpcKill("Test foe", (int) wish.getTarget()); break;
 			case SKILLING: companion.recordSkill("WOODCUTTING", wish.getTarget()); break;
 			case ADVENTURE: companion.recordQuestOrClue("Test quest"); break;
+			case CHALLENGE: companion.recordMajorChallenge("Test raid"); break;
 			case EXPLORATION: companion.recordRegionVisit(TEST_REGION.incrementAndGet()); break;
 			case PLAY: companion.recordGame(true); break;
 			default: throw new AssertionError();

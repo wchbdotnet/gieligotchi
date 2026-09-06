@@ -58,6 +58,10 @@ public class ProgressionModelTest
 			"You have completed 12 medium Treasure Trails.").getAmount());
 		assertEquals(35_000, ActivityRewardPolicy.npcKillAward("TzKal-Zuk", 1400));
 		assertEquals(20_480, ActivityRewardPolicy.npcKillAward("Phosani's Nightmare", 1024));
+		assertTrue(ActivityRewardPolicy.isMajorChallenge("cox"));
+		assertTrue(ActivityRewardPolicy.isMajorChallenge("corrupted_gauntlet"));
+		assertFalse(ActivityRewardPolicy.isMajorChallenge("pest_control_blue"));
+		assertTrue(ActivityRewardPolicy.isQuestOrClue("clue_master"));
 	}
 
 	@Test
