@@ -1,0 +1,357 @@
+[
+  {
+    "id": "abyssal_orphan",
+    "name": "Abyssal orphan",
+    "rarity": "RARE"
+  },
+  {
+    "id": "aggy",
+    "name": "Aggy",
+    "rarity": "RARE"
+  },
+  {
+    "id": "baby_mole",
+    "name": "Baby Mole",
+    "rarity": "UNCOMMON"
+  },
+  {
+    "id": "baron",
+    "name": "Baron",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "bran",
+    "name": "Bran",
+    "rarity": "RARE"
+  },
+  {
+    "id": "beef",
+    "name": "Beef",
+    "rarity": "COMMON"
+  },
+  {
+    "id": "butch",
+    "name": "Butch",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "callisto_cub",
+    "name": "Callisto cub",
+    "rarity": "RARE"
+  },
+  {
+    "id": "dom",
+    "name": "Dom",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "gull",
+    "name": "Gull",
+    "rarity": "RARE"
+  },
+  {
+    "id": "hellpuppy",
+    "name": "Hellpuppy",
+    "rarity": "RARE"
+  },
+  {
+    "id": "huberte",
+    "name": "Huberte",
+    "rarity": "UNCOMMON"
+  },
+  {
+    "id": "ikkle_hydra",
+    "name": "Ikkle Hydra",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "jal_nib_rek",
+    "name": "Jal-Nib-Rek",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "kalphite_princess",
+    "name": "Kalphite Princess",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "lil_zik",
+    "name": "Lil' Zik",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "lilviathan",
+    "name": "Lil'viathan",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "little_nightmare",
+    "name": "Little Nightmare",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "maggot_marquess",
+    "name": "Maggot marquess",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "moxi",
+    "name": "Moxi",
+    "rarity": "RARE"
+  },
+  {
+    "id": "muphin",
+    "name": "Muphin",
+    "rarity": "RARE"
+  },
+  {
+    "id": "nexling",
+    "name": "Nexling",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "nid",
+    "name": "Nid",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "noon",
+    "name": "Noon",
+    "rarity": "RARE"
+  },
+  {
+    "id": "olmlet",
+    "name": "Olmlet",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "pet_chaos_elemental",
+    "name": "Pet Chaos Elemental",
+    "rarity": "COMMON"
+  },
+  {
+    "id": "pet_dagannoth_prime",
+    "name": "Pet Dagannoth Prime",
+    "rarity": "RARE"
+  },
+  {
+    "id": "pet_dagannoth_rex",
+    "name": "Pet Dagannoth Rex",
+    "rarity": "RARE"
+  },
+  {
+    "id": "pet_dagannoth_supreme",
+    "name": "Pet Dagannoth Supreme",
+    "rarity": "RARE"
+  },
+  {
+    "id": "pet_dark_core",
+    "name": "Pet dark core",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "pet_general_graardor",
+    "name": "Pet General Graardor",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "pet_kril_tsutsaroth",
+    "name": "Pet K'ril Tsutsaroth",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "pet_kraken",
+    "name": "Pet Kraken",
+    "rarity": "COMMON"
+  },
+  {
+    "id": "pet_kreearra",
+    "name": "Pet Kree'arra",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "pet_smoke_devil",
+    "name": "Pet Smoke Devil",
+    "rarity": "RARE"
+  },
+  {
+    "id": "pet_snakeling",
+    "name": "Pet Snakeling",
+    "rarity": "RARE"
+  },
+  {
+    "id": "pet_zilyana",
+    "name": "Pet Zilyana",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "phoenix",
+    "name": "Phoenix",
+    "rarity": "RARE"
+  },
+  {
+    "id": "prince_black_dragon",
+    "name": "Prince Black Dragon",
+    "rarity": "UNCOMMON"
+  },
+  {
+    "id": "scorpias_offspring",
+    "name": "Scorpia's offspring",
+    "rarity": "COMMON"
+  },
+  {
+    "id": "scurry",
+    "name": "Scurry",
+    "rarity": "UNCOMMON"
+  },
+  {
+    "id": "skotos",
+    "name": "Skotos",
+    "rarity": "RARE"
+  },
+  {
+    "id": "smolcano",
+    "name": "Smolcano",
+    "rarity": "RARE"
+  },
+  {
+    "id": "smol_heredit",
+    "name": "Smol Heredit",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "sraracha",
+    "name": "Sraracha",
+    "rarity": "UNCOMMON"
+  },
+  {
+    "id": "tiny_tempor",
+    "name": "Tiny tempor",
+    "rarity": "RARE"
+  },
+  {
+    "id": "tumekens_guardian",
+    "name": "Tumeken's guardian",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "tzrek_jad",
+    "name": "TzRek-Jad",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "venenatis_spiderling",
+    "name": "Venenatis spiderling",
+    "rarity": "RARE"
+  },
+  {
+    "id": "vetion_jr",
+    "name": "Vet'ion Jr.",
+    "rarity": "RARE"
+  },
+  {
+    "id": "vorki",
+    "name": "Vorki",
+    "rarity": "RARE"
+  },
+  {
+    "id": "wisp",
+    "name": "Wisp",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "yami",
+    "name": "Yami",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "youngllef",
+    "name": "Youngllef",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "baby_chinchompa",
+    "name": "Baby chinchompa",
+    "rarity": "UNCOMMON"
+  },
+  {
+    "id": "beaver",
+    "name": "Beaver",
+    "rarity": "RARE"
+  },
+  {
+    "id": "giant_squirrel",
+    "name": "Giant Squirrel",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "heron",
+    "name": "Heron",
+    "rarity": "RARE"
+  },
+  {
+    "id": "rift_guardian",
+    "name": "Rift guardian",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "rock_golem",
+    "name": "Rock golem",
+    "rarity": "RARE"
+  },
+  {
+    "id": "rocky",
+    "name": "Rocky",
+    "rarity": "COMMON"
+  },
+  {
+    "id": "soup",
+    "name": "Soup",
+    "rarity": "RARE"
+  },
+  {
+    "id": "tangleroot",
+    "name": "Tangleroot",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "abyssal_protector",
+    "name": "Abyssal protector",
+    "rarity": "EPIC"
+  },
+  {
+    "id": "bloodhound",
+    "name": "Bloodhound",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "chompy_chick",
+    "name": "Chompy chick",
+    "rarity": "COMMON"
+  },
+  {
+    "id": "herbi",
+    "name": "Herbi",
+    "rarity": "RARE"
+  },
+  {
+    "id": "lil_creator",
+    "name": "Lil' Creator",
+    "rarity": "RARE"
+  },
+  {
+    "id": "pet_penance_queen",
+    "name": "Pet Penance Queen",
+    "rarity": "LEGENDARY"
+  },
+  {
+    "id": "quetzin",
+    "name": "Quetzin",
+    "rarity": "RARE"
+  },
+  {
+    "id": "mr_mcgroot",
+    "name": "Mr McGroot",
+    "rarity": "RARE"
+  }
+]

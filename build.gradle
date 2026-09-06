@@ -1,0 +1,58 @@
+plugins {
+	id 'java'
+}
+
+repositories {
+	maven {
+		url = 'https://repo.runelite.net'
+		content { includeGroupByRegex("net\\.runelite.*") }
+	}
+	mavenCentral()
+	// Keep locally published RuneLite snapshots available without allowing an
+	// incomplete local native set to shadow complete upstream dependencies.
+	mavenLocal()
+}
+
+def runeLiteVersion = 'latest.release'
+def pluginMainClass = 'com.gieligotchi.GieligotchiPluginTest'
+
+dependencies {
+	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+	testImplementation 'junit:junit:4.13.2'
+	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
+	testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
+}
+
+group = 'com.gieligotchi'
+version = '0.1.0'
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release.set(11)
+}
+
+tasks.register('run', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = pluginMainClass
+	def bundledJava = file("${System.getenv('LOCALAPPDATA')}/RuneLite/jre/bin/java.exe")
+	if (bundledJava.exists()) {
+		executable = bundledJava
+	}
+	jvmArgs '-ea', '-Djava.util.prefs.PreferencesFactory=com.gieligotchi.DevPreferencesFactory'
+	args '--developer-mode', '--profile', 'Gieligotchi DEV'
+}
+
+tasks.register('shadowJar', Jar) {
+	dependsOn configurations.testRuntimeClasspath
+	manifest { attributes('Main-Class': pluginMainClass, 'Multi-Release': true) }
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	from sourceSets.main.output
+	from sourceSets.test.output
+	from { configurations.testRuntimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+	exclude 'META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', '**/module-info.class'
+	group = BasePlugin.BUILD_GROUP
+	archiveClassifier.set('shadow')
+	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
+}

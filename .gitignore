@@ -1,0 +1,9 @@
+.gradle/
+.dev-home/
+build/
+out/
+*.iml
+.idea/
+artwork/
+docs/
+launch-dev.cmd
