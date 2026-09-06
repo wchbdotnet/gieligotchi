@@ -7,3 +7,5 @@ out/
 artwork/
 docs/
 launch-dev.cmd
+__pycache__/
+*.pyc

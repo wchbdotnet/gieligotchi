@@ -1,0 +1,42 @@
+name: Plugin Hub review notifications
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-hub-review-notifications
+  cancel-in-progress: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out notification code
+        uses: actions/checkout@v6
+
+      - name: Restore last observed PR state
+        uses: actions/cache/restore@v5
+        with:
+          path: .plugin-hub-monitor
+          key: plugin-hub-review-${{ github.run_id }}
+          restore-keys: |
+            plugin-hub-review-
+
+      - name: Check RuneLite Plugin Hub PR
+        id: monitor
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.PLUGIN_HUB_DISCORD_WEBHOOK }}
+          GH_TOKEN: ${{ github.token }}
+        run: python .github/scripts/notify_plugin_hub.py
+
+      - name: Save updated PR state
+        if: steps.monitor.outputs.changed == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: .plugin-hub-monitor
+          key: plugin-hub-review-${{ github.run_id }}
