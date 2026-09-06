@@ -18,10 +18,6 @@
 </p>
 
 <p align="center">
-  Inspired by <a href="https://github.com/Azderi/osrs-tcg">OSRS TCG</a> by Az.
-</p>
-
-<p align="center">
   <img src="src/main/resources/com/gieligotchi/images/pets/pet_kraken/base.png" width="88" alt="Pet Kraken companion">
   <img src="src/main/resources/com/gieligotchi/images/pets/youngllef/frost.png" width="88" alt="Youngllef companion">
   <img src="src/main/resources/com/gieligotchi/images/pets/little_nightmare/base.png" width="88" alt="Little Nightmare companion">
