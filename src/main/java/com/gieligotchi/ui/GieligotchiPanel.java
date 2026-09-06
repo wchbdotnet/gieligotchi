@@ -549,13 +549,14 @@ public class GieligotchiPanel extends PluginPanel
 		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
 		title.setForeground(new Color(0xD7B867));
 		panel.add(title, BorderLayout.NORTH);
+		int availableWidth = Math.max(190, home.getWidth() - home.getInsets().left - home.getInsets().right);
+		int contentWidth = Math.max(160, availableWidth - 18);
 		JPanel content = "play".equals(journeyMode) ? buildGamePanel()
 			: "items".equals(journeyMode) ? buildItemsPanel(state)
-			: buildCarePanel(state.getActiveCompanion());
+			: buildCarePanel(state.getActiveCompanion(), contentWidth);
 		panel.add(content, BorderLayout.CENTER);
-		int availableWidth = Math.max(190, home.getWidth() - home.getInsets().left - home.getInsets().right);
 		Dimension preferred = panel.getPreferredSize();
-		int minimumHeight = "care".equals(journeyMode) ? 276 : 0;
+		int minimumHeight = "items".equals(journeyMode) ? 76 : 0;
 		Dimension fixed = new Dimension(availableWidth, Math.max(preferred.height, minimumHeight));
 		panel.setPreferredSize(fixed);
 		panel.setMinimumSize(fixed);
@@ -564,7 +565,7 @@ public class GieligotchiPanel extends PluginPanel
 		return panel;
 	}
 
-	private JPanel buildCarePanel(CompanionInstance companion)
+	private JPanel buildCarePanel(CompanionInstance companion, int contentWidth)
 	{
 		JPanel care = new JPanel();
 		care.setOpaque(false);
@@ -588,11 +589,8 @@ public class GieligotchiPanel extends PluginPanel
 		String personality = companion.getPersonality() == null
 			? "Personality locked · " + Math.max(0, 15 - companion.getAffectionHearts()) + " hearts to reveal"
 			: companion.getPersonality().getDisplayName() + " · " + companion.getPersonality().getDescription();
-		JTextArea personalityLabel = paragraph(personality, 12f);
+		JTextArea personalityLabel = fittedParagraph(personality, 12f, contentWidth, 18);
 		personalityLabel.setForeground(companion.getPersonality() == null ? new Color(0xA8A8A8) : new Color(0xD9D0BA));
-		personalityLabel.setMinimumSize(new Dimension(180, 36));
-		personalityLabel.setPreferredSize(new Dimension(190, 36));
-		personalityLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
 		personalityLabel.setAlignmentX(CENTER_ALIGNMENT);
 		care.add(personalityLabel);
 		care.add(Box.createVerticalStrut(9));
@@ -603,10 +601,8 @@ public class GieligotchiPanel extends PluginPanel
 		wishTitle.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
 		wishTitle.setAlignmentX(CENTER_ALIGNMENT);
 		care.add(wishTitle);
-		JTextArea wishText = paragraph(wish == null ? "A new wish is forming…" : wish.getLabel(), 12f);
-		wishText.setMinimumSize(new Dimension(180, 34));
-		wishText.setPreferredSize(new Dimension(190, 34));
-		wishText.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+		JTextArea wishText = fittedParagraph(wish == null ? "A new wish is forming…" : wish.getLabel(),
+			12f, contentWidth, 18);
 		wishText.setAlignmentX(CENTER_ALIGNMENT);
 		care.add(wishText);
 		if (wish != null)
@@ -675,11 +671,9 @@ public class GieligotchiPanel extends PluginPanel
 		int memoryCount = companion.getMemories().size();
 		if (memoryCount == 0)
 		{
-			JTextArea emptyMemories = paragraph("Your shared milestones will be recorded here as you play.", 11f);
+			JTextArea emptyMemories = fittedParagraph(
+				"Your shared milestones will be recorded here as you play.", 11f, contentWidth, 18);
 			emptyMemories.setForeground(new Color(0x999999));
-			emptyMemories.setMinimumSize(new Dimension(180, 38));
-			emptyMemories.setPreferredSize(new Dimension(190, 38));
-			emptyMemories.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
 			emptyMemories.setAlignmentX(CENTER_ALIGNMENT);
 			care.add(emptyMemories);
 		}
@@ -690,10 +684,8 @@ public class GieligotchiPanel extends PluginPanel
 		for (int i = newestMemory; i >= oldestMemory && i >= 0; i--)
 		{
 			MemoryEntry memory = companion.getMemories().get(i);
-			JTextArea line = paragraph("• " + memory.getTitle() + " — " + memory.getDetail(), 11f);
-			line.setMinimumSize(new Dimension(180, 42));
-			line.setPreferredSize(new Dimension(190, 42));
-			line.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+			JTextArea line = fittedParagraph("• " + memory.getTitle() + " — " + memory.getDetail(),
+				11f, contentWidth, 18);
 			line.setAlignmentX(CENTER_ALIGNMENT);
 			line.setToolTipText(new SimpleDateFormat("dd MMM yyyy HH:mm", Locale.UK).format(new Date(memory.getCreatedAt())));
 			care.add(line);
@@ -803,8 +795,13 @@ public class GieligotchiPanel extends PluginPanel
 		items.add(Box.createVerticalStrut(5));
 		if (state.getOwnedToyIds().isEmpty())
 		{
-			JTextArea empty = paragraph("No toys yet. Unlock them from the Cosmetic Shop.", 12f);
-			empty.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+			JLabel empty = new JLabel("Visit the Cosmetic Shop", SwingConstants.CENTER);
+			empty.setFont(FontManager.getRunescapeSmallFont().deriveFont(12f));
+			empty.setForeground(new Color(0xE2E2E2));
+			empty.setAlignmentX(CENTER_ALIGNMENT);
+			empty.setMinimumSize(new Dimension(0, 20));
+			empty.setPreferredSize(new Dimension(190, 20));
+			empty.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 			items.add(empty);
 		}
 		JPanel grid = new JPanel(new GridLayout(0, 2, 5, 5));
@@ -1713,6 +1710,17 @@ public class GieligotchiPanel extends PluginPanel
 		text.setBorder(BorderFactory.createEmptyBorder());
 		text.setAlignmentX(LEFT_ALIGNMENT);
 		text.setMinimumSize(new Dimension(0, 0));
+		return text;
+	}
+
+	private JTextArea fittedParagraph(String copy, float size, int width, int minimumHeight)
+	{
+		JTextArea text = paragraph(copy, size);
+		text.setSize(new Dimension(width, Short.MAX_VALUE));
+		int height = Math.max(minimumHeight, text.getPreferredSize().height);
+		text.setMinimumSize(new Dimension(0, height));
+		text.setPreferredSize(new Dimension(width, height));
+		text.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
 		return text;
 	}
 

@@ -76,11 +76,11 @@ public class GieligotchiOverlay extends Overlay
 		int barHeight = Math.max(8, (int) Math.round(10 * scale));
 		int barY = 5 + artSize + Math.max(2, (int) Math.round(3 * scale));
 		int baseHeight = barY + barHeight + Math.max(5, (int) Math.round(5 * scale));
-		int infoWidth = hovered && companion != null ? Math.max(150, (int) Math.round(190 * scale)) : 0;
+		int infoWidth = hovered && companion != null ? Math.max(200, (int) Math.round(210 * scale)) : 0;
 		int width = visualWidth + infoWidth;
 		int height = baseHeight;
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		graphics.setColor(new Color(18, 20, 18, 220));
+		graphics.setColor(new Color(18, 20, 18, 245));
 		graphics.fill(new RoundRectangle2D.Float(0, 0, width, height, 14, 14));
 		graphics.setColor(companion != null && companion.isLegacy() ? new Color(242, 196, 90, 245)
 			: companion != null && companion.getAffectionHearts() >= 60 ? new Color(219, 133, 169, 240)
@@ -168,34 +168,40 @@ public class GieligotchiOverlay extends Overlay
 		}
 		if (hovered && companion != null)
 		{
-			graphics.setColor(new Color(91, 82, 61, 210));
+			graphics.setColor(new Color(125, 111, 76, 235));
 			graphics.drawLine(visualWidth, 7, visualWidth, height - 8);
 			int textX = visualWidth + 8;
 			int textY = Math.max(17, (int) Math.round(18 * scale));
-			int fontSize = Math.max(8, (int) Math.round(9 * scale));
+			int fontSize = Math.max(10, (int) Math.round(11 * scale));
 			graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, fontSize));
-			graphics.setColor(new Color(0xF2C45A));
 			com.gieligotchi.model.PetDefinition pet = catalogue.find(companion.getSpeciesId());
 			String speciesName = pet == null ? "Companion" : pet.getName();
-			graphics.drawString(companion.getDisplayName(speciesName).toUpperCase(Locale.ENGLISH), textX, textY);
-			graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, Math.max(7, fontSize - 1)));
-			graphics.setColor(new Color(0xE2E2E2));
+			drawReadableText(graphics, companion.getDisplayName(speciesName).toUpperCase(Locale.ENGLISH),
+				textX, textY, new Color(0xF7D36D));
+			graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, Math.max(9, fontSize - 1)));
 			String personality = companion.getPersonality() == null ? "Undiscovered" : companion.getPersonality().getDisplayName();
-			graphics.drawString("♥ " + companion.getAffectionHearts() + " " + companion.getRelationshipStage().getDisplayName()
-				+ " · " + personality, textX, textY + fontSize + 3);
+			drawReadableText(graphics, "♥ " + companion.getAffectionHearts() + " " + companion.getRelationshipStage().getDisplayName()
+				+ " · " + personality, textX, textY + fontSize + 4, new Color(0xF5F1E8));
 			com.gieligotchi.model.CompanionWish wish = companion.getWish();
 			if (wish != null)
 			{
 				String wishLine = "Wish " + wish.getProgress() + "/" + wish.getTarget()
 					+ (wish.isComplete() ? " · READY" : "");
-				graphics.drawString(wishLine, textX, textY + (fontSize + 3) * 2);
+				drawReadableText(graphics, wishLine, textX, textY + (fontSize + 4) * 2, new Color(0xF5F1E8));
 			}
 			Toy equipped = state.getEquippedToy();
-			graphics.setColor(new Color(0xBEB28C));
-			graphics.drawString(equipped == null ? "No toy equipped" : equipped.getDisplayName(),
-				textX, textY + (fontSize + 3) * 3);
+			drawReadableText(graphics, equipped == null ? "No toy equipped" : equipped.getDisplayName(),
+				textX, textY + (fontSize + 4) * 3, new Color(0xDDCB95));
 		}
 		return new Dimension(width, height);
+	}
+
+	private void drawReadableText(Graphics2D graphics, String text, int x, int y, Color foreground)
+	{
+		graphics.setColor(new Color(0, 0, 0, 235));
+		graphics.drawString(text, x + 1, y + 1);
+		graphics.setColor(foreground);
+		graphics.drawString(text, x, y);
 	}
 
 	private Dimension renderCeremony(Graphics2D graphics, ProfileState state, double scale)
