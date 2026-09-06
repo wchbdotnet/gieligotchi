@@ -98,11 +98,14 @@ public class GieligotchiStateService
 		recordLevel99IfNeeded();
 		if (state.getActiveCompanion() != null)
 		{
-			if ("quest_complete".equals(id) || id != null && id.startsWith("clue_"))
+			if (ActivityRewardPolicy.isQuestOrClue(id))
 			{
 				state.getActiveCompanion().recordQuestOrClue(label);
 			}
-			else { state.getActiveCompanion().recordMajorChallenge(label); }
+			else if (ActivityRewardPolicy.isMajorChallenge(id))
+			{
+				state.getActiveCompanion().recordMajorChallenge(label);
+			}
 		}
 		sealIfReady();
 		persist();

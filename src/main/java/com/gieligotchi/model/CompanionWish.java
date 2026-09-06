@@ -2,7 +2,7 @@ package com.gieligotchi.model;
 
 public class CompanionWish
 {
-	public enum Type { COMBAT, SKILLING, ADVENTURE, EXPLORATION, PLAY }
+	public enum Type { COMBAT, SKILLING, ADVENTURE, CHALLENGE, EXPLORATION, PLAY }
 
 	private Type type;
 	private String label;

@@ -38,6 +38,33 @@ public final class ActivityRewardPolicy
 		return base;
 	}
 
+	public static boolean isQuestOrClue(String id)
+	{
+		return "quest_complete".equals(id) || id != null && id.startsWith("clue_");
+	}
+
+	public static boolean isMajorChallenge(String id)
+	{
+		if (id == null) { return false; }
+		switch (id)
+		{
+			case "cox":
+			case "cox_cm":
+			case "toa":
+			case "toa_entry":
+			case "toa_expert":
+			case "tob":
+			case "tob_entry":
+			case "tob_hm":
+			case "gauntlet":
+			case "corrupted_gauntlet":
+			case "barbarian_assault":
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	private static List<Rule> buildRules()
 	{
 		List<Rule> rules = new ArrayList<>();
