@@ -32,6 +32,7 @@ import net.runelite.api.Hitsplat;
 import net.runelite.api.ItemID;
 import net.runelite.api.NPC;
 import net.runelite.api.Skill;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.events.ActorDeath;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
@@ -78,6 +79,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	private boolean welcomeOpening;
 	private boolean skillBaselinesSynchronized;
 	private int lastRegionId = -1;
+	private int lastSlayerCount = -1;
 	private final Map<Integer, Integer> engagedNpcTicks = new HashMap<>();
 	private final Map<String, Long> recentActivityAwards = new HashMap<>();
 	private final Runnable profileListener = this::onProfileChanged;
@@ -197,6 +199,12 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			if (lastRegionId > 0 && regionId != lastRegionId) { stateService.recordRegionVisit(regionId); }
 			lastRegionId = regionId;
 		}
+		int slayerCount = client.getVarpValue(VarPlayerID.SLAYER_COUNT);
+		if (lastSlayerCount > 0 && slayerCount == 0)
+		{
+			if (stateService.awardSlayerTask() > 0) { notifyIfReady(); }
+		}
+		lastSlayerCount = slayerCount;
 	}
 
 	@Subscribe
@@ -210,6 +218,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			welcomeOpening = false;
 			skillBaselinesSynchronized = false;
 			lastRegionId = -1;
+			lastSlayerCount = -1;
 			engagedNpcTicks.clear();
 			recentActivityAwards.clear();
 			hatchAnimation.reset();

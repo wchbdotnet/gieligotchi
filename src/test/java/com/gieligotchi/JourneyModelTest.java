@@ -98,6 +98,55 @@ public class JourneyModelTest
 		assertTrue(wish.isComplete());
 	}
 
+	@Test
+	public void slayerTaskHasItsOwnWishProgress() throws Exception
+	{
+		CompanionInstance companion = companion();
+		CompanionWish wish = new CompanionWish(CompanionWish.Type.SLAYER, "Complete a Slayer task", 1);
+		setWish(companion, wish);
+		companion.recordNpcKill("Abyssal demon", 124);
+		assertFalse(wish.isComplete());
+		companion.recordSlayerTask();
+		assertTrue(wish.isComplete());
+	}
+
+	@Test
+	public void wishTargetsAndRewardsScaleWithCompanionLevel()
+	{
+		assertEquals(80L, CompanionWish.forLevel(CompanionWish.Type.COMBAT, 1).getTarget());
+		assertEquals(472L, CompanionWish.forLevel(CompanionWish.Type.COMBAT, 99).getTarget());
+		assertEquals(4_000L, CompanionWish.forLevel(CompanionWish.Type.SKILLING, 1).getTarget());
+		assertEquals(28_500L, CompanionWish.forLevel(CompanionWish.Type.SKILLING, 99).getTarget());
+		assertEquals(1L, CompanionWish.forLevel(CompanionWish.Type.SLAYER, 1).getTarget());
+		assertEquals(2L, CompanionWish.forLevel(CompanionWish.Type.SLAYER, 99).getTarget());
+		assertEquals(1_500L, CompanionWish.rewardXp(CompanionWish.Type.COMBAT, 1));
+		assertEquals(7_500L, CompanionWish.rewardXp(CompanionWish.Type.COMBAT, 99));
+		assertEquals(15_000L, CompanionWish.rewardXp(CompanionWish.Type.CHALLENGE, 1));
+		assertEquals(75_000L, CompanionWish.rewardXp(CompanionWish.Type.CHALLENGE, 99));
+		assertEquals(3_000L, CompanionWish.rewardXp(CompanionWish.Type.SLAYER, 1));
+		assertEquals(15_000L, CompanionWish.rewardXp(CompanionWish.Type.SLAYER, 99));
+	}
+
+	@Test
+	public void wishSkipsStartAtThreeAndRegenerateFromBondingXp()
+	{
+		CompanionInstance companion = companion();
+		assertEquals(3, companion.getWishSkips());
+		assertTrue(companion.rerollWish());
+		assertTrue(companion.rerollWish());
+		assertTrue(companion.rerollWish());
+		assertFalse(companion.rerollWish());
+		companion.addXp(4_999L);
+		assertEquals(0, companion.getWishSkips());
+		assertEquals(4_999L, companion.getWishSkipXpRemainder());
+		companion.addXp(1L);
+		assertEquals(1, companion.getWishSkips());
+		assertEquals(0L, companion.getWishSkipXpRemainder());
+		companion.addXp(20_000L);
+		assertEquals(3, companion.getWishSkips());
+		assertEquals(0L, companion.getWishSkipXpRemainder());
+	}
+
 	private static CompanionInstance companion()
 	{
 		return CompanionInstance.from(new HatchReceipt("egg", EggTier.COMMON, "soup",
@@ -110,6 +159,9 @@ public class JourneyModelTest
 		{
 			case COMBAT: companion.recordNpcKill("Test foe", (int) wish.getTarget()); break;
 			case SKILLING: companion.recordSkill("WOODCUTTING", wish.getTarget()); break;
+			case SLAYER:
+				for (int i = 0; i < wish.getTarget(); i++) { companion.recordSlayerTask(); }
+				break;
 			case ADVENTURE: companion.recordQuestOrClue("Test quest"); break;
 			case CHALLENGE: companion.recordMajorChallenge("Test raid"); break;
 			case EXPLORATION: companion.recordRegionVisit(TEST_REGION.incrementAndGet()); break;
