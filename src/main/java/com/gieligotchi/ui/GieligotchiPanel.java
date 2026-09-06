@@ -623,15 +623,19 @@ public class GieligotchiPanel extends PluginPanel
 			care.add(Box.createVerticalStrut(4));
 			JPanel wishActions = new JPanel(new GridLayout(1, 2, 4, 0));
 			wishActions.setOpaque(false);
-			JButton claim = styledButton(wish.isComplete() ? "Claim ♥ + 3 GPts" : "Claim at 100%", 10f);
+			long rewardXp = CompanionWish.rewardXp(wish.getType(), LevelCurve.levelFor(companion));
+			JButton claim = styledButton(wish.isComplete() ? "Claim · " + format(rewardXp) + " XP" : "Claim at 100%", 10f);
 			claim.setEnabled(wish.isComplete());
+			claim.setToolTipText("Awards " + format(rewardXp) + " Bonding XP, 1 heart and 3 Gotchi Points");
 			claim.addActionListener(event ->
 			{
 				effects.trigger(CompanionEffectController.Effect.WISH);
 				stateService.claimWish();
 			});
-			JButton reroll = styledButton("Free reroll", 10f);
-			reroll.setToolTipText("Replace an unsuitable wish; there is no penalty");
+			JButton reroll = styledButton("Skip wish (" + companion.getWishSkips() + ")", 10f);
+			reroll.setEnabled(companion.getWishSkips() > 0);
+			reroll.setToolTipText(companion.getWishSkips() >= 3 ? "3 / 3 skips available"
+				: format(5_000L - companion.getWishSkipXpRemainder()) + " Bonding XP until the next skip");
 			reroll.addActionListener(event -> stateService.rerollWish());
 			wishActions.add(claim); wishActions.add(reroll);
 			wishActions.setMaximumSize(new Dimension(Integer.MAX_VALUE, 27));
@@ -1538,7 +1542,7 @@ public class GieligotchiPanel extends PluginPanel
 			{"2 · PLAY OLD SCHOOL", "Train skills, fight NPCs, complete quests and take on larger challenges. Every style of play can help your active egg or companion grow."},
 			{"3 · WATCH IT HATCH", "The overlay and handheld show progress. When an egg is ready, interact with it to reveal its species and colour."},
 			{"4 · RAISE YOUR COMPANION", "Keep earning Bonding XP after hatching to increase its level. Meaningful milestones and tougher adventures tend to feel more rewarding."},
-			{"5 · CARE, PLAY & ITEMS", "Use A for care and memories, B for a quick game and C for the Toy Box. Wishes and toys build affection, personality and memories."},
+			{"5 · CARE, PLAY & ITEMS", "Use A for care and memories, B for a quick game and C for the Toy Box. Wishes grow with your companion and reward Bonding XP, affection, personality and memories. You begin with three wish skips, which replenish through play up to the same cap."},
 			{"6 · BUILD A COLLECTION", "Stash companions, collect colours, unlock scenes and review Hatch History. Selling is permanent, but the discovery remains recorded."},
 			{"7 · MAKE IT YOURS", "Rename close companions, choose a backdrop and equip a favourite toy. Overlay display options are available in the plugin settings."},
 			{"8 · LONG-TERM GOALS", "High-level and deeply bonded companions gain special recognition. Some rewards, memories and presentation details are best discovered through play."}

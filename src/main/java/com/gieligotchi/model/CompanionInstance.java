@@ -9,6 +9,8 @@ import java.util.UUID;
 
 public class CompanionInstance
 {
+	private static final int MAX_WISH_SKIPS = 3;
+	private static final long WISH_SKIP_XP = 5_000L;
 	private String instanceId;
 	private String speciesId;
 	private SpeciesRarity speciesRarity;
@@ -25,6 +27,8 @@ public class CompanionInstance
 	private List<Integer> regionsVisited = new ArrayList<>();
 	private List<MemoryEntry> memories = new ArrayList<>();
 	private CompanionWish wish;
+	private Integer wishSkips;
+	private long wishSkipXpRemainder;
 	private String favoriteToyId;
 	private int highestNpcLevel;
 	private String highestNpcName;
@@ -43,7 +47,8 @@ public class CompanionInstance
 		companion.eggTierOrigin = receipt.getEggTier();
 		companion.memories.add(new MemoryEntry("Hatched", "Began life as a "
 			+ receipt.getEggTier().getDisplayName() + " egg"));
-		companion.wish = companion.createWish(null);
+		companion.wish = companion.createWish(null, 1);
+		companion.wishSkips = MAX_WISH_SKIPS;
 		return companion;
 	}
 
@@ -54,13 +59,19 @@ public class CompanionInstance
 	public long getLifetimeXp() { return lifetimeXp; }
 	public long getHatchedAt() { return hatchedAt; }
 	public EggTier getEggTierOrigin() { return eggTierOrigin; }
-	public void addXp(long amount) { lifetimeXp = Math.max(0, lifetimeXp + amount); }
+	public void addXp(long amount)
+	{
+		lifetimeXp = Math.max(0, lifetimeXp + amount);
+		earnWishSkipProgress(amount);
+	}
 	public String getCustomName() { return customName; }
 	public String getDisplayName(String speciesName) { return customName == null || customName.trim().isEmpty() ? speciesName : customName; }
 	public int getAffectionHearts() { return affectionHearts; }
 	public RelationshipStage getRelationshipStage() { return RelationshipStage.forHearts(affectionHearts); }
 	public CompanionPersonality getPersonality() { return personality; }
 	public CompanionWish getWish() { return wish; }
+	public int getWishSkips() { return wishSkips == null ? MAX_WISH_SKIPS : wishSkips; }
+	public long getWishSkipXpRemainder() { return wishSkipXpRemainder; }
 	public List<MemoryEntry> getMemories() { return memories; }
 	public String getFavoriteToyId() { return favoriteToyId; }
 	public int getHighestNpcLevel() { return highestNpcLevel; }
@@ -76,7 +87,11 @@ public class CompanionInstance
 		if (toyInteractions == null) { toyInteractions = new LinkedHashMap<>(); }
 		if (regionsVisited == null) { regionsVisited = new ArrayList<>(); }
 		if (memories == null) { memories = new ArrayList<>(); }
-		if (wish == null) { wish = createWish(null); }
+		if (wish == null) { wish = createWish(null, 1); }
+		if (wishSkips == null) { wishSkips = MAX_WISH_SKIPS; }
+		wishSkips = Math.max(0, Math.min(MAX_WISH_SKIPS, wishSkips));
+		wishSkipXpRemainder = wishSkips >= MAX_WISH_SKIPS ? 0
+			: Math.max(0, Math.min(WISH_SKIP_XP - 1, wishSkipXpRemainder));
 	}
 
 	public void rename(String name)
@@ -88,9 +103,16 @@ public class CompanionInstance
 		addMemoryOnce("Named", "Became known as " + customName);
 	}
 
-	public void rerollWish() { wish = createWish(wish == null ? null : wish.getType()); }
+	public boolean rerollWish(int companionLevel)
+	{
+		if (getWishSkips() <= 0) { return false; }
+		wishSkips = getWishSkips() - 1;
+		wish = createWish(wish == null ? null : wish.getType(), companionLevel);
+		return true;
+	}
+	public boolean rerollWish() { return rerollWish(1); }
 
-	public boolean claimWish()
+	public boolean claimWish(int nextWishLevel)
 	{
 		if (wish == null || !wish.isComplete()) { return false; }
 		CompanionWish.Type completedType = wish.getType();
@@ -98,9 +120,10 @@ public class CompanionInstance
 		addPersonalityPoint(personalityFor(completedType), 1);
 		addMemoryOnce("Wish fulfilled", wish.getLabel());
 		checkRelationshipMilestones();
-		wish = createWish(completedType);
+		wish = createWish(completedType, nextWishLevel);
 		return true;
 	}
+	public boolean claimWish() { return claimWish(1); }
 
 	public void recordSkill(String skillName, long rawXp)
 	{
@@ -128,6 +151,13 @@ public class CompanionInstance
 		addPersonalityPoint(CompanionPersonality.ADVENTUROUS, 2);
 		progressWish(CompanionWish.Type.ADVENTURE, 1);
 		if (label != null && !label.isEmpty()) { addMemoryOnce("Adventure", label); }
+	}
+
+	public void recordSlayerTask()
+	{
+		addPersonalityPoint(CompanionPersonality.FIERCE, 2);
+		progressWish(CompanionWish.Type.SLAYER, 1);
+		addMemoryOnce("Slayer", "Completed a Slayer task together");
 	}
 
 	public void recordMajorChallenge(String label)
@@ -195,6 +225,20 @@ public class CompanionInstance
 		if (wish != null && wish.getType() == type && !wish.isComplete()) { wish.addProgress(amount); }
 	}
 
+	private void earnWishSkipProgress(long bondingXp)
+	{
+		if (bondingXp <= 0 || getWishSkips() >= MAX_WISH_SKIPS)
+		{
+			if (getWishSkips() >= MAX_WISH_SKIPS) { wishSkipXpRemainder = 0; }
+			return;
+		}
+		wishSkipXpRemainder += bondingXp;
+		long earned = wishSkipXpRemainder / WISH_SKIP_XP;
+		if (earned <= 0) { return; }
+		wishSkips = (int) Math.min(MAX_WISH_SKIPS, getWishSkips() + earned);
+		wishSkipXpRemainder = getWishSkips() >= MAX_WISH_SKIPS ? 0 : wishSkipXpRemainder % WISH_SKIP_XP;
+	}
+
 	private void addPersonalityPoint(CompanionPersonality candidate, int amount)
 	{
 		if (amount > 0) { personalityPoints.merge(candidate.name(), amount, Integer::sum); }
@@ -214,7 +258,7 @@ public class CompanionInstance
 		}
 	}
 
-	private CompanionWish createWish(CompanionWish.Type avoid)
+	private CompanionWish createWish(CompanionWish.Type avoid, int companionLevel)
 	{
 		long seed = System.nanoTime() ^ (instanceId == null ? 0 : instanceId.hashCode()) ^ affectionHearts;
 		Random random = new Random(seed);
@@ -223,15 +267,7 @@ public class CompanionInstance
 		if (personality != null && random.nextInt(100) < 55) { type = typeFor(personality); }
 		else { type = types[random.nextInt(types.length)]; }
 		if (type == avoid) { type = types[(type.ordinal() + 1 + random.nextInt(types.length - 1)) % types.length]; }
-		switch (type)
-		{
-			case COMBAT: return new CompanionWish(type, "Defeat foes worth " + (80 + affectionHearts * 3) + " combat levels", 80 + affectionHearts * 3L);
-			case SKILLING: return new CompanionWish(type, "Earn " + (4_000 + affectionHearts * 100) + " XP", 4_000 + affectionHearts * 100L);
-			case ADVENTURE: return new CompanionWish(type, "Complete a quest or clue", 1);
-			case CHALLENGE: return new CompanionWish(type, "Complete a raid, Gauntlet or Barbarian Assault Wave 10", 1);
-			case EXPLORATION: return new CompanionWish(type, "Visit a new area", 1);
-			default: return new CompanionWish(type, "Win a round of Higher or Lower", 1);
-		}
+		return CompanionWish.forLevel(type, companionLevel);
 	}
 
 	private void checkRelationshipMilestones()
@@ -259,6 +295,7 @@ public class CompanionInstance
 		{
 			case COMBAT: return CompanionPersonality.FIERCE;
 			case SKILLING: return CompanionPersonality.INDUSTRIOUS;
+			case SLAYER: return CompanionPersonality.FIERCE;
 			case ADVENTURE: return CompanionPersonality.ADVENTUROUS;
 			case CHALLENGE: return CompanionPersonality.ADVENTUROUS;
 			case EXPLORATION: return CompanionPersonality.ADVENTUROUS;

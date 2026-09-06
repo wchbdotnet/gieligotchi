@@ -124,6 +124,19 @@ public class GieligotchiStateService
 		return amount;
 	}
 
+	public synchronized long awardSlayerTask()
+	{
+		if (state == null) { return 0; }
+		long amount = ActivityRewardPolicy.slayerTaskAward();
+		state.award(amount);
+		recordLevel99IfNeeded();
+		if (state.getActiveCompanion() != null) { state.getActiveCompanion().recordSlayerTask(); }
+		sealIfReady();
+		persist();
+		fireChanged();
+		return amount;
+	}
+
 	public synchronized CompanionInstance reveal()
 	{
 		if (state == null) { return null; }
@@ -234,15 +247,24 @@ public class GieligotchiStateService
 
 	public synchronized boolean claimWish()
 	{
-		if (state == null || state.getActiveCompanion() == null || !state.getActiveCompanion().claimWish()) { return false; }
+		if (state == null || state.getActiveCompanion() == null) { return false; }
+		CompanionInstance companion = state.getActiveCompanion();
+		com.gieligotchi.model.CompanionWish wish = companion.getWish();
+		if (wish == null || !wish.isComplete()) { return false; }
+		long rewardXp = com.gieligotchi.model.CompanionWish.rewardXp(wish.getType(), LevelCurve.levelFor(companion));
+		state.award(rewardXp);
+		recordLevel99IfNeeded();
+		if (!companion.claimWish(LevelCurve.levelFor(companion))) { return false; }
 		state.grantGotchiPoints(3);
 		persist(); fireChanged(); return true;
 	}
 
-	public synchronized void rerollWish()
+	public synchronized boolean rerollWish()
 	{
-		if (state == null || state.getActiveCompanion() == null) { return; }
-		state.getActiveCompanion().rerollWish(); persist(); fireChanged();
+		if (state == null || state.getActiveCompanion() == null) { return false; }
+		CompanionInstance companion = state.getActiveCompanion();
+		if (!companion.rerollWish(LevelCurve.levelFor(companion))) { return false; }
+		persist(); fireChanged(); return true;
 	}
 
 	public synchronized void renameActiveCompanion(String name)

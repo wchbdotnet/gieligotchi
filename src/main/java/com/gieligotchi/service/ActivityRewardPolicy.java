@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 /** Local, versioned completion rewards adapted from the documented OSRS TCG event map. */
 public final class ActivityRewardPolicy
 {
+	private static final long SLAYER_TASK_AWARD = 2_500L;
 	private static final List<Rule> RULES = buildRules();
 
 	private ActivityRewardPolicy() {}
@@ -37,6 +38,8 @@ public final class ActivityRewardPolicy
 		if ("sol heredit".equals(name)) { return Math.max(base, 10_000L); }
 		return base;
 	}
+
+	public static long slayerTaskAward() { return SLAYER_TASK_AWARD; }
 
 	public static boolean isQuestOrClue(String id)
 	{
