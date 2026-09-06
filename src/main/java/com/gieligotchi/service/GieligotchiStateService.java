@@ -96,7 +96,14 @@ public class GieligotchiStateService
 		if (state == null || amount <= 0) { return 0; }
 		state.award(amount);
 		recordLevel99IfNeeded();
-		if (state.getActiveCompanion() != null) { state.getActiveCompanion().recordAdventure(label); }
+		if (state.getActiveCompanion() != null)
+		{
+			if ("quest_complete".equals(id) || id != null && id.startsWith("clue_"))
+			{
+				state.getActiveCompanion().recordQuestOrClue(label);
+			}
+			else { state.getActiveCompanion().recordMajorChallenge(label); }
+		}
 		sealIfReady();
 		persist();
 		fireChanged();
@@ -256,6 +263,12 @@ public class GieligotchiStateService
 	public ProfileState getState() { return state; }
 	public void addListener(Runnable listener) { listeners.add(listener); }
 	public void removeListener(Runnable listener) { listeners.remove(listener); }
+	public synchronized void backup()
+	{
+		ProfileState current = state;
+		String key = profileKey;
+		if (current != null && key != null) { store.backup(key, current); }
+	}
 
 	private void sealIfReady()
 	{
