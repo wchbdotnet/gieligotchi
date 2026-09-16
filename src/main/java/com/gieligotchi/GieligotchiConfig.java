@@ -33,13 +33,19 @@ public interface GieligotchiConfig extends Config
 		description = "Scale the pixel-art overlay from 50% to 250%; 100% is the compact default", position = 4)
 	default int overlayScale() { return 100; }
 
+	@Range(min = 100, max = 160)
+	@ConfigItem(keyName = "textScale", name = "Text size",
+		description = "Scale text throughout the Gieligotchi sidebar and overlay; 120% is the readable default",
+		position = 5)
+	default int textScale() { return 120; }
+
 	@ConfigItem(keyName = "reducedMotion", name = "Reduced motion",
-		description = "Hold the first animation frame and disable wandering", position = 5)
+		description = "Hold the first animation frame and disable wandering", position = 6)
 	default boolean reducedMotion() { return false; }
 
 	@ConfigItem(keyName = "resetAccount", name = "Reset Gieligotchi account",
 		description = "Permanently erase the current account's eggs, companions, collection, purchases and progress",
 		warning = "This permanently erases all Gieligotchi progress for the current account. This cannot be undone.",
-		position = 6)
+		position = 7)
 	default boolean resetAccount() { return false; }
 }

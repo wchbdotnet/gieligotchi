@@ -23,6 +23,8 @@ import java.awt.BorderLayout;
 import java.awt.BasicStroke;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -48,6 +50,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
@@ -79,6 +82,10 @@ public class GieligotchiPanel extends PluginPanel
 	private static final int BACKDROPS_PER_PAGE = 5;
 	private static final long TOY_PLAY_COOLDOWN_MILLIS = 5_000L;
 	private static final String DISCORD_INVITE = "https://discord.gg/dP9WN62QQE";
+	private static final String BASE_FONT_PROPERTY = "gieligotchi.baseFont";
+	private static final String BASE_MINIMUM_SIZE_PROPERTY = "gieligotchi.baseMinimumSize";
+	private static final String BASE_PREFERRED_SIZE_PROPERTY = "gieligotchi.basePreferredSize";
+	private static final String BASE_MAXIMUM_SIZE_PROPERTY = "gieligotchi.baseMaximumSize";
 	private static final String HOME = "home";
 	private final GieligotchiStateService stateService;
 	private final PetCatalogue catalogue;
@@ -439,8 +446,58 @@ public class GieligotchiPanel extends PluginPanel
 		rebuildGuide();
 		rebuildRules();
 		rebuildRarities();
+		applyTextScale(this);
+		revalidate();
 		display.repaint();
 	}
+
+	private void applyTextScale(Component component)
+	{
+		if (component instanceof JComponent)
+		{
+			JComponent swingComponent = (JComponent) component;
+			Font baseFont = (Font) swingComponent.getClientProperty(BASE_FONT_PROPERTY);
+			if (baseFont == null && component.getFont() != null)
+			{
+				baseFont = component.getFont();
+				swingComponent.putClientProperty(BASE_FONT_PROPERTY, baseFont);
+			}
+			if (baseFont != null) { component.setFont(baseFont.deriveFont(scaledFontSize(baseFont.getSize2D()))); }
+			if (!(component instanceof TamagotchiDisplay))
+			{
+				scaleExplicitSize(swingComponent, BASE_MINIMUM_SIZE_PROPERTY, 0);
+				scaleExplicitSize(swingComponent, BASE_PREFERRED_SIZE_PROPERTY, 1);
+				scaleExplicitSize(swingComponent, BASE_MAXIMUM_SIZE_PROPERTY, 2);
+			}
+		}
+		if (component instanceof Container)
+		{
+			for (Component child : ((Container) component).getComponents()) { applyTextScale(child); }
+		}
+	}
+
+	private void scaleExplicitSize(JComponent component, String property, int kind)
+	{
+		boolean explicitlySet = kind == 0 ? component.isMinimumSizeSet()
+			: kind == 1 ? component.isPreferredSizeSet() : component.isMaximumSizeSet();
+		if (!explicitlySet) { return; }
+		Dimension base = (Dimension) component.getClientProperty(property);
+		if (base == null)
+		{
+			base = kind == 0 ? component.getMinimumSize()
+				: kind == 1 ? component.getPreferredSize() : component.getMaximumSize();
+			component.putClientProperty(property, new Dimension(base));
+		}
+		int height = base.height > 0 && base.height < Integer.MAX_VALUE / 2
+			? Math.max(1, Math.round(base.height * textScale())) : base.height;
+		Dimension scaled = new Dimension(base.width, height);
+		if (kind == 0) { component.setMinimumSize(scaled); }
+		else if (kind == 1) { component.setPreferredSize(scaled); }
+		else { component.setMaximumSize(scaled); }
+	}
+
+	private float textScale() { return Math.max(1f, config.textScale() / 100f); }
+	private float scaledFontSize(float size) { return Math.max(1f, size * textScale()); }
 
 	private JPanel buildWelcomeCard()
 	{

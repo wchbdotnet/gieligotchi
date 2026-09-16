@@ -65,6 +65,7 @@ public class GieligotchiOverlay extends Overlay
 		if (state == null) { return null; }
 		// The former 75% presentation is now the canonical 100% size.
 		double scale = config.overlayScale() / 100d * 0.75d;
+		double textScale = config.textScale() / 100d;
 		if (hatchAnimation.isCeremonyActive()) { return renderCeremony(graphics, state, scale); }
 		boolean revealProgress = hovered;
 		int visualWidth = Math.max(80, (int) Math.round(132 * scale));
@@ -76,10 +77,12 @@ public class GieligotchiOverlay extends Overlay
 		int barHeight = Math.max(8, (int) Math.round(10 * scale));
 		int barY = 5 + artSize + Math.max(2, (int) Math.round(3 * scale));
 		int baseHeight = barY + barHeight + Math.max(5, (int) Math.round(5 * scale));
-		int infoWidth = hovered && companion != null ? Math.max(200, (int) Math.round(210 * scale)) : 0;
+		int infoWidth = hovered && companion != null
+			? Math.max(220, (int) Math.round(210 * scale * textScale)) : 0;
 		int width = visualWidth + infoWidth;
 		int height = baseHeight;
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		graphics.setColor(new Color(18, 20, 18, 245));
 		graphics.fill(new RoundRectangle2D.Float(0, 0, width, height, 14, 14));
 		graphics.setColor(companion != null && companion.isLegacy() ? new Color(242, 196, 90, 245)
@@ -157,7 +160,8 @@ public class GieligotchiOverlay extends Overlay
 		graphics.fillRoundRect(barX, barY, (int) Math.round(barWidth * progress), barHeight, 6, 6);
 		if (revealProgress)
 		{
-			graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, Math.max(7, (int) Math.round(8 * scale))));
+			graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD,
+				Math.max(9, (int) Math.round(9 * scale * textScale))));
 			FontMetrics metrics = graphics.getFontMetrics();
 			int labelX = barX + Math.max(0, (barWidth - metrics.stringWidth(label)) / 2);
 			int labelY = barY + (barHeight - metrics.getHeight()) / 2 + metrics.getAscent();
@@ -172,13 +176,13 @@ public class GieligotchiOverlay extends Overlay
 			graphics.drawLine(visualWidth, 7, visualWidth, height - 8);
 			int textX = visualWidth + 8;
 			int textY = Math.max(17, (int) Math.round(18 * scale));
-			int fontSize = Math.max(10, (int) Math.round(11 * scale));
-			graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, fontSize));
+			int fontSize = Math.max(12, (int) Math.round(13 * scale * textScale));
+			graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
 			com.gieligotchi.model.PetDefinition pet = catalogue.find(companion.getSpeciesId());
 			String speciesName = pet == null ? "Companion" : pet.getName();
 			drawReadableText(graphics, companion.getDisplayName(speciesName).toUpperCase(Locale.ENGLISH),
 				textX, textY, new Color(0xF7D36D));
-			graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, Math.max(9, fontSize - 1)));
+			graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(11, fontSize - 1)));
 			String personality = companion.getPersonality() == null ? "Undiscovered" : companion.getPersonality().getDisplayName();
 			drawReadableText(graphics, "♥ " + companion.getAffectionHearts() + " " + companion.getRelationshipStage().getDisplayName()
 				+ " · " + personality, textX, textY + fontSize + 4, new Color(0xF5F1E8));
@@ -206,6 +210,7 @@ public class GieligotchiOverlay extends Overlay
 
 	private Dimension renderCeremony(Graphics2D graphics, ProfileState state, double scale)
 	{
+		double textScale = config.textScale() / 100d;
 		int width = Math.max(210, (int) Math.round(270 * scale));
 		int height = Math.max(225, (int) Math.round(290 * scale));
 		boolean reveal = hatchAnimation.isRevealing();
@@ -217,6 +222,7 @@ public class GieligotchiOverlay extends Overlay
 		if (reveal) { graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, hatchAnimation.getRevealOpacity())); }
 		double pulse = (Math.sin(System.currentTimeMillis() / 115d) + 1d) / 2d;
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		graphics.setColor(new Color(10, 11, 10, 238));
 		graphics.fillRoundRect(0, 0, width, height, 22, 22);
 		graphics.setStroke(new BasicStroke(3f));
@@ -252,7 +258,7 @@ public class GieligotchiOverlay extends Overlay
 				centreY - artSize / 2 - 6, artSize, artSize, 2, 3); }
 		}
 
-		graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, 14));
+		graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(14, (int) Math.round(14 * textScale))));
 		graphics.setColor(new Color(0xF2C45A));
 		com.gieligotchi.model.PetDefinition pet = receipt == null ? null : catalogue.find(receipt.getSpeciesId());
 		String title = reveal && pet != null ? pet.getName().toUpperCase(Locale.ENGLISH) : reveal ? "A NEW COMPANION!" : "HATCHING...";
@@ -260,14 +266,14 @@ public class GieligotchiOverlay extends Overlay
 		graphics.drawString(title, (width - titleMetrics.stringWidth(title)) / 2, 25);
 		if (reveal && receipt != null)
 		{
-			graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, 9));
+			graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(10, (int) Math.round(10 * textScale))));
 			graphics.setColor(Color.WHITE);
 			String detail = receipt.getSpeciesRarity().getDisplayName().toUpperCase(Locale.ENGLISH)
 				+ " · " + receipt.getPalette().getDisplayName().toUpperCase(Locale.ENGLISH);
 			FontMetrics detailMetrics = graphics.getFontMetrics();
 			graphics.drawString(detail, Math.max(7, (width - detailMetrics.stringWidth(detail)) / 2), height - 24);
 			String chance = "EXACT HATCH: " + String.format(Locale.UK, "%.6f%%", receipt.getCombinedChance() * 100d);
-			graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 8));
+			graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, Math.max(9, (int) Math.round(9 * textScale))));
 			FontMetrics chanceMetrics = graphics.getFontMetrics();
 			graphics.drawString(chance, Math.max(7, (width - chanceMetrics.stringWidth(chance)) / 2), height - 10);
 		}

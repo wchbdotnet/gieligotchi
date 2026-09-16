@@ -311,6 +311,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 				overlayDragOffset = null;
 				overlayDragged = false;
 			}
+			if ("textScale".equals(event.getKey())) { panel.refresh(); }
 		}
 	}
 
