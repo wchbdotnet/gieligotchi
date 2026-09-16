@@ -11,7 +11,7 @@ import urllib.request
 
 
 REPOSITORY = "runelite/plugin-hub"
-PR_NUMBER = 16119
+PR_NUMBER = 16612
 PR_URL = f"https://github.com/{REPOSITORY}/pull/{PR_NUMBER}"
 API = "https://api.github.com"
 STATE_FILE = Path(".plugin-hub-monitor/state.json")
