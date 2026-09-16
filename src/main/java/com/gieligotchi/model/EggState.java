@@ -4,6 +4,7 @@ import java.util.UUID;
 
 public class EggState
 {
+	public static final long STARTER_HATCH_XP = 12_500L;
 	private String instanceId;
 	private EggTier tier;
 	private long hatchXp;
@@ -18,7 +19,7 @@ public class EggState
 		EggState egg = new EggState();
 		egg.instanceId = UUID.randomUUID().toString();
 		egg.tier = EggTier.COMMON;
-		egg.targetXp = 16_000L;
+		egg.targetXp = STARTER_HATCH_XP;
 		egg.starter = true;
 		return egg;
 	}
@@ -52,5 +53,12 @@ public class EggState
 		double progress = getProgress();
 		targetXp = newTargetXp;
 		hatchXp = Math.min(targetXp, Math.max(0L, Math.round(progress * targetXp)));
+	}
+
+	public void retargetPreservingXp(long newTargetXp)
+	{
+		if (newTargetXp <= 0 || newTargetXp == targetXp) { return; }
+		targetXp = newTargetXp;
+		hatchXp = Math.min(targetXp, Math.max(0L, hatchXp));
 	}
 }

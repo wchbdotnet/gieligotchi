@@ -1333,6 +1333,14 @@ public class GieligotchiPanel extends PluginPanel
 		JTextArea intro = paragraph("Unlock permanent backdrops and toys with Gotchi Points. Toys add companion reactions and memories, never gameplay power.", 14f);
 		intro.setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
 		shop.add(intro);
+		if (state != null && !state.hasEggOrCompanion())
+		{
+			JTextArea journeyRequired = paragraph("Choose an egg before unlocking toys or backdrops.", 12f);
+			journeyRequired.setForeground(new Color(0xE8B06A));
+			journeyRequired.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+			shop.add(Box.createVerticalStrut(5));
+			shop.add(journeyRequired);
+		}
 		shop.add(Box.createVerticalStrut(8));
 		JTextArea disclosure = paragraph("ARTWORK NOTE\nCompanion and backdrop artwork was created specifically for Gieligotchi with AI-assisted tools. We welcome collaboration with Old School RuneScape artists.", 12f);
 		disclosure.setBackground(new Color(0x202224));
@@ -1389,6 +1397,7 @@ public class GieligotchiPanel extends PluginPanel
 	{
 		boolean owned = state != null && state.ownsToy(toy);
 		boolean equipped = state != null && state.getEquippedToy() == toy;
+		boolean hasJourney = state != null && state.hasEggOrCompanion();
 		JPanel card = new JPanel(new BorderLayout(8, 0));
 		card.setBackground(new Color(0x202224));
 		card.setBorder(BorderFactory.createCompoundBorder(
@@ -1409,7 +1418,17 @@ public class GieligotchiPanel extends PluginPanel
 		price.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
 		price.setForeground(new Color(0xC9A95F));
 		JButton action = styledButton(equipped ? "Equipped" : owned ? "Equip" : "Unlock", 11f);
-		action.setEnabled(state != null && !equipped && (owned || state.getGotchiPoints() >= toy.getPrice()));
+		action.setEnabled(state != null && !equipped
+			&& (owned || hasJourney && state.getGotchiPoints() >= toy.getPrice()));
+		if (!owned && state != null && !hasJourney)
+		{
+			action.setToolTipText("Choose an egg before unlocking toys");
+		}
+		else if (!owned && state != null && state.getGotchiPoints() < toy.getPrice())
+		{
+			action.setToolTipText("You need " + format(toy.getPrice() - state.getGotchiPoints())
+				+ " more Gotchi Points");
+		}
 		action.addActionListener(event -> { if (owned) { stateService.equipToy(toy); } else { stateService.purchaseToy(toy); } });
 		info.add(name); info.add(price); info.add(Box.createVerticalGlue()); info.add(action);
 		card.add(info, BorderLayout.CENTER);
@@ -1422,6 +1441,7 @@ public class GieligotchiPanel extends PluginPanel
 	{
 		boolean owned = state != null && state.ownsBackdrop(backdrop);
 		boolean equipped = state != null && state.getEquippedBackdrop() == backdrop;
+		boolean hasJourney = state != null && state.hasEggOrCompanion();
 		JPanel card = new JPanel(new BorderLayout(8, 0));
 		card.setBackground(new Color(0x202224));
 		card.setBorder(BorderFactory.createCompoundBorder(
@@ -1445,9 +1465,12 @@ public class GieligotchiPanel extends PluginPanel
 		price.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
 		price.setForeground(new Color(0xC9A95F));
 		JButton action = styledButton(equipped ? "Equipped" : owned ? "Equip" : "Unlock", 11f);
-		action.setEnabled(state != null && !equipped && (owned || state.getGotchiPoints() >= backdrop.getPrice()));
-		action.setToolTipText(!owned && state != null && state.getGotchiPoints() < backdrop.getPrice()
-			? "You need " + format(backdrop.getPrice() - state.getGotchiPoints()) + " more Gotchi Points" : null);
+		action.setEnabled(state != null && !equipped
+			&& (owned || hasJourney && state.getGotchiPoints() >= backdrop.getPrice()));
+		action.setToolTipText(!owned && state != null && !hasJourney
+			? "Choose an egg before unlocking backdrops"
+			: !owned && state != null && state.getGotchiPoints() < backdrop.getPrice()
+				? "You need " + format(backdrop.getPrice() - state.getGotchiPoints()) + " more Gotchi Points" : null);
 		action.addActionListener(event ->
 		{
 			if (owned) { stateService.equipBackdrop(backdrop); }

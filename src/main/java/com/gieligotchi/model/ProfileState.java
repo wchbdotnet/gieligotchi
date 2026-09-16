@@ -26,6 +26,8 @@ public class ProfileState
 	private Map<String, Integer> skillBaselines = new LinkedHashMap<>();
 	private Map<String, Integer> skillLevelBaselines = new LinkedHashMap<>();
 	private Map<String, Integer> skillRemainders = new LinkedHashMap<>();
+	private long overallXpBaseline;
+	private int offlineXpRemainder;
 	@SerializedName(value = "gotchiPoints", alternate = {"eggshells"})
 	private long gotchiPoints;
 	private long companionshipRemainder;
@@ -59,6 +61,7 @@ public class ProfileState
 	public Map<String, Integer> getSkillBaselines() { return skillBaselines; }
 	public Map<String, Integer> getSkillLevelBaselines() { return skillLevelBaselines; }
 	public Map<String, Integer> getSkillRemainders() { return skillRemainders; }
+	public long getOverallXpBaseline() { return overallXpBaseline; }
 
 	public void repair()
 	{
@@ -78,14 +81,61 @@ public class ProfileState
 		if (skillRemainders == null) { skillRemainders = new LinkedHashMap<>(); }
 		if (activeEgg != null)
 		{
-			activeEgg.rebalanceTarget(activeEgg.isStarter() ? 16_000L : activeEgg.getTier().getHatchXp());
+			if (activeEgg.isStarter()) { activeEgg.retargetPreservingXp(EggState.STARTER_HATCH_XP); }
+			else { activeEgg.rebalanceTarget(activeEgg.getTier().getHatchXp()); }
 		}
 		if (activeCompanion != null) { activeCompanion.repair(); }
 		for (CompanionInstance companion : stashedCompanions) { if (companion != null) { companion.repair(); } }
 		for (EggState egg : stashedEggs)
 		{
-			if (egg != null) { egg.rebalanceTarget(egg.isStarter() ? 16_000L : egg.getTier().getHatchXp()); }
+			if (egg == null) { continue; }
+			if (egg.isStarter()) { egg.retargetPreservingXp(EggState.STARTER_HATCH_XP); }
+			else { egg.rebalanceTarget(egg.getTier().getHatchXp()); }
 		}
+	}
+
+	public long reconcileOfflineXp(long currentOverallXp)
+	{
+		if (currentOverallXp < 0) { return 0; }
+		long previous = overallXpBaseline;
+		overallXpBaseline = currentOverallXp;
+		if (previous <= 0)
+		{
+			offlineXpRemainder = 0;
+			return 0;
+		}
+		if (currentOverallXp < previous)
+		{
+			offlineXpRemainder = 0;
+			return 0;
+		}
+		if (currentOverallXp == previous) { return 0; }
+		if (!canReceiveBondingXp())
+		{
+			offlineXpRemainder = 0;
+			return 0;
+		}
+		long accumulated = currentOverallXp - previous + offlineXpRemainder;
+		long bondingXp = accumulated / 5L;
+		offlineXpRemainder = (int) (accumulated % 5L);
+		award(bondingXp);
+		return bondingXp;
+	}
+
+	public void updateOverallXpBaseline(long currentOverallXp)
+	{
+		if (currentOverallXp >= 0) { overallXpBaseline = currentOverallXp; }
+	}
+
+	public boolean hasEggOrCompanion()
+	{
+		return activeEgg != null || activeCompanion != null
+			|| !stashedEggs.isEmpty() || !stashedCompanions.isEmpty();
+	}
+
+	private boolean canReceiveBondingXp()
+	{
+		return activeCompanion != null || activeEgg != null && !activeEgg.isReady();
 	}
 
 	public void award(long bondingXp)
@@ -167,7 +217,8 @@ public class ProfileState
 
 	public boolean purchaseBackdrop(Backdrop backdrop)
 	{
-		if (backdrop == null || ownsBackdrop(backdrop) || gotchiPoints < backdrop.getPrice()) { return false; }
+		if (backdrop == null || ownsBackdrop(backdrop) || !hasEggOrCompanion()
+			|| gotchiPoints < backdrop.getPrice()) { return false; }
 		gotchiPoints -= backdrop.getPrice();
 		ownedBackdropIds.add(backdrop.getAssetId());
 		equippedBackdropId = backdrop.getAssetId();
@@ -188,7 +239,8 @@ public class ProfileState
 
 	public boolean purchaseToy(Toy toy)
 	{
-		if (toy == null || ownsToy(toy) || gotchiPoints < toy.getPrice()) { return false; }
+		if (toy == null || ownsToy(toy) || !hasEggOrCompanion()
+			|| gotchiPoints < toy.getPrice()) { return false; }
 		gotchiPoints -= toy.getPrice();
 		ownedToyIds.add(toy.getAssetId());
 		equippedToyId = toy.getAssetId();

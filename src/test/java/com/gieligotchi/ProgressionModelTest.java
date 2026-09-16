@@ -33,7 +33,7 @@ public class ProgressionModelTest
 		assertEquals(2, SkillRewardPolicy.observe(state, Skill.WOODCUTTING, 1_020));
 		assertEquals(0, SkillRewardPolicy.observe(state, Skill.ATTACK, 1_000));
 		assertEquals(20, SkillRewardPolicy.observe(state, Skill.ATTACK, 1_100));
-		assertEquals(40, SkillRewardPolicy.npcKillAward(2));
+		assertEquals(20, SkillRewardPolicy.npcKillAward(2));
 		assertEquals(0, SkillRewardPolicy.npcKillAward(0));
 	}
 
@@ -57,7 +57,7 @@ public class ProgressionModelTest
 		assertEquals(2_000, ActivityRewardPolicy.match(
 			"You have completed 12 medium Treasure Trails.").getAmount());
 		assertEquals(35_000, ActivityRewardPolicy.npcKillAward("TzKal-Zuk", 1400));
-		assertEquals(20_480, ActivityRewardPolicy.npcKillAward("Phosani's Nightmare", 1024));
+		assertEquals(10_240, ActivityRewardPolicy.npcKillAward("Phosani's Nightmare", 1024));
 		assertTrue(ActivityRewardPolicy.isMajorChallenge("cox"));
 		assertTrue(ActivityRewardPolicy.isMajorChallenge("corrupted_gauntlet"));
 		assertFalse(ActivityRewardPolicy.isMajorChallenge("pest_control_blue"));
@@ -65,21 +65,45 @@ public class ProgressionModelTest
 	}
 
 	@Test
-	public void starterEggUsesThirtyMinuteCalibrationTarget()
+	public void starterEggUsesReducedCalibrationTarget()
 	{
 		EggState egg = EggState.starter();
-		assertEquals(16_000L, egg.getTargetXp());
+		assertEquals(12_500L, egg.getTargetXp());
 		assertFalse(egg.isReady());
 		egg.addXp(30_000L);
 		assertTrue(egg.isReady());
-		assertEquals(16_000L, egg.getHatchXp());
+		assertEquals(12_500L, egg.getHatchXp());
+	}
+
+	@Test
+	public void existingStarterEggKeepsEarnedXpWhenTargetDrops()
+	{
+		ProfileState state = new Gson().fromJson("{\"profileKey\":\"legacy\",\"activeEgg\":"
+			+ "{\"tier\":\"COMMON\",\"starter\":true,\"targetXp\":16000,\"hatchXp\":13000}}",
+			ProfileState.class);
+		state.repair();
+		assertEquals(12_500L, state.getActiveEgg().getTargetXp());
+		assertEquals(12_500L, state.getActiveEgg().getHatchXp());
+		assertTrue(state.getActiveEgg().isReady());
+	}
+
+	@Test
+	public void loginReconciliationAwardsOverallXpDifferenceOnce()
+	{
+		ProfileState state = ProfileState.fresh("offline-xp");
+		assertEquals(0L, state.reconcileOfflineXp(1_000_000L));
+		assertEquals(1L, state.reconcileOfflineXp(1_000_006L));
+		assertEquals(1L, state.getActiveEgg().getHatchXp());
+		assertEquals(0L, state.reconcileOfflineXp(1_000_006L));
+		assertEquals(1L, state.reconcileOfflineXp(1_000_010L));
+		assertEquals(2L, state.getActiveEgg().getHatchXp());
 	}
 
 	@Test
 	public void eggRebalancingPreservesEarnedPercentage()
 	{
 		EggState egg = EggState.starter();
-		egg.addXp(8_000L);
+		egg.addXp(6_250L);
 		egg.rebalanceTarget(25_000L);
 		assertEquals(12_500L, egg.getHatchXp());
 		assertEquals(0.5d, egg.getProgress(), 0.00001d);

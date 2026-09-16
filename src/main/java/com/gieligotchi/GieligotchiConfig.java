@@ -36,4 +36,10 @@ public interface GieligotchiConfig extends Config
 	@ConfigItem(keyName = "reducedMotion", name = "Reduced motion",
 		description = "Hold the first animation frame and disable wandering", position = 5)
 	default boolean reducedMotion() { return false; }
+
+	@ConfigItem(keyName = "resetAccount", name = "Reset Gieligotchi account",
+		description = "Permanently erase the current account's eggs, companions, collection, purchases and progress",
+		warning = "This permanently erases all Gieligotchi progress for the current account. This cannot be undone.",
+		position = 6)
+	default boolean resetAccount() { return false; }
 }

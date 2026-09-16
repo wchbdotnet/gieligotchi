@@ -15,7 +15,7 @@ public final class SkillRewardPolicy
 
 	public static long npcKillAward(int combatLevel)
 	{
-		return Math.max(0, combatLevel) * 20L;
+		return Math.max(0, combatLevel) * 10L;
 	}
 
 	public static long observe(ProfileState state, Skill skill, int xp)

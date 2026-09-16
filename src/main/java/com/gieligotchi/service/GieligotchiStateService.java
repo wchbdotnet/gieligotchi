@@ -48,12 +48,13 @@ public class GieligotchiStateService
 		});
 	}
 
-	public synchronized long observeSkill(Skill skill, int xp)
+	public synchronized long observeSkill(Skill skill, int xp, long overallXp)
 	{
 		if (state == null) { return 0; }
 		Integer previous = skill == null ? null : state.getSkillBaselines().get(skill.name());
 		long rawDelta = previous == null ? 0 : Math.max(0, xp - previous);
 		long award = SkillRewardPolicy.observe(state, skill, xp);
+		state.updateOverallXpBaseline(overallXp);
 		if (award > 0) { state.award(award); recordLevel99IfNeeded(); sealIfReady(); }
 		CompanionInstance companion = state.getActiveCompanion();
 		if (companion != null && rawDelta > 0) { companion.recordSkill(skill.name(), rawDelta); }
@@ -62,9 +63,26 @@ public class GieligotchiStateService
 		return award;
 	}
 
-	public synchronized void synchronizeSkillBaselines(Map<Skill, Integer> currentXp)
+	public synchronized long reconcileLoginXp(Map<Skill, Integer> currentXp, long currentOverallXp)
 	{
-		if (state == null || currentXp == null) { return; }
+		if (state == null || currentXp == null) { return 0; }
+		if (state.getOverallXpBaseline() <= 0 && !currentXp.isEmpty())
+		{
+			long inferredOverallXp = 0;
+			boolean completeBaseline = true;
+			for (Skill skill : currentXp.keySet())
+			{
+				Integer savedXp = state.getSkillBaselines().get(skill.name());
+				if (savedXp == null)
+				{
+					completeBaseline = false;
+					break;
+				}
+				inferredOverallXp += savedXp;
+			}
+			if (completeBaseline) { state.updateOverallXpBaseline(inferredOverallXp); }
+		}
+		long award = state.reconcileOfflineXp(currentOverallXp);
 		for (Map.Entry<Skill, Integer> entry : currentXp.entrySet())
 		{
 			Skill skill = entry.getKey();
@@ -75,7 +93,10 @@ public class GieligotchiStateService
 				state.getSkillLevelBaselines().put(skill.name(), SkillRewardPolicy.levelForXp(xp));
 			}
 		}
+		if (award > 0) { recordLevel99IfNeeded(); sealIfReady(); }
 		persist();
+		if (award > 0) { fireChanged(); }
+		return award;
 	}
 
 	public synchronized long awardNpcKill(String name, int combatLevel)
@@ -293,6 +314,15 @@ public class GieligotchiStateService
 		ProfileState current = state;
 		String key = profileKey;
 		if (current != null && key != null) { store.backup(key, current); }
+	}
+
+	public synchronized boolean resetProfile()
+	{
+		if (profileKey == null) { return false; }
+		state = ProfileState.fresh(profileKey);
+		store.reset(profileKey, state);
+		fireChanged();
+		return true;
 	}
 
 	private void sealIfReady()
