@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.inject.Inject;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
@@ -42,6 +43,8 @@ import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
@@ -74,6 +77,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Inject private MouseManager mouseManager;
 	@Inject private Notifier notifier;
 	@Inject private ItemManager itemManager;
+	@Inject private ConfigManager configManager;
+	@Inject private ChatMessageManager chatMessageManager;
 	private NavigationButton navigationButton;
 	private String loadedProfileKey;
 	private boolean welcomeOpening;
@@ -187,8 +192,14 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			{
 				if (skill != Skill.OVERALL) { currentXp.put(skill, client.getSkillExperience(skill)); }
 			}
-			stateService.synchronizeSkillBaselines(currentXp);
+			long reconciledXp = stateService.reconcileLoginXp(currentXp, client.getOverallExperience());
 			skillBaselinesSynchronized = true;
+			if (reconciledXp > 0)
+			{
+				queueSystemMessage("Welcome back! You gained " + format(reconciledXp)
+					+ " Bonding XP from progress made while you were away.");
+				notifyIfReady();
+			}
 		}
 		int currentTick = client.getTickCount();
 		engagedNpcTicks.entrySet().removeIf(entry -> currentTick - entry.getValue() > 12);
@@ -228,7 +239,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onStatChanged(StatChanged event)
 	{
-		long award = stateService.observeSkill(event.getSkill(), event.getXp());
+		if (!skillBaselinesSynchronized) { return; }
+		long award = stateService.observeSkill(event.getSkill(), event.getXp(), client.getOverallExperience());
 		if (award > 0) { notifyIfReady(); }
 	}
 
@@ -287,6 +299,11 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	{
 		if (GieligotchiConfig.GROUP.equals(event.getGroup()))
 		{
+			if ("resetAccount".equals(event.getKey()) && config.resetAccount())
+			{
+				SwingUtilities.invokeLater(this::confirmAccountReset);
+				return;
+			}
 			overlay.syncMovement();
 			if (!config.unlockOverlay())
 			{
@@ -294,6 +311,39 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 				overlayDragged = false;
 			}
 		}
+	}
+
+	private void confirmAccountReset()
+	{
+		int choice = JOptionPane.showConfirmDialog(panel,
+			"This will permanently erase every Gieligotchi egg, companion, collection entry,\n"
+				+ "purchase, memory and point for the current account.\n\nStart over from a new starter egg?",
+			"Reset Gieligotchi account", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+		welcomeOpening = false;
+		if (choice == JOptionPane.YES_OPTION && stateService.resetProfile())
+		{
+			hatchAnimation.reset();
+			skillBaselinesSynchronized = false;
+			lastRegionId = -1;
+			lastSlayerCount = -1;
+			queueSystemMessage("Your Gieligotchi account has been reset. A new starter egg is waiting for you.");
+		}
+		configManager.setConfiguration(GieligotchiConfig.GROUP, "resetAccount", false);
+	}
+
+	private void queueSystemMessage(String message)
+	{
+		String plain = "[Gieligotchi] " + message;
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.value(plain)
+			.runeLiteFormattedMessage("<col=ffcc66>[Gieligotchi]</col> " + message)
+			.build());
+	}
+
+	private static String format(long amount)
+	{
+		return String.format(Locale.UK, "%,d", amount);
 	}
 
 	private void loadCurrentProfile()

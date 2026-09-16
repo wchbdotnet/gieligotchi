@@ -2,6 +2,7 @@ package com.gieligotchi;
 
 import com.gieligotchi.model.CompanionInstance;
 import com.gieligotchi.model.CompanionWish;
+import com.gieligotchi.model.EggState;
 import com.gieligotchi.model.EggTier;
 import com.gieligotchi.model.HatchReceipt;
 import com.gieligotchi.model.Palette;
@@ -58,6 +59,23 @@ public class JourneyModelTest
 		assertTrue(companion.getLegacyAt() > 0);
 		assertTrue(companion.getMemories().stream()
 			.anyMatch(memory -> "Legacy companion".equals(memory.getTitle())));
+	}
+
+	@Test
+	public void cosmeticsCannotBePurchasedWithoutAnyEggOrCompanion()
+	{
+		ProfileState state = ProfileState.fresh("empty-account");
+		EggState egg = state.getActiveEgg();
+		egg.addXp(egg.getTargetXp());
+		egg.seal(new HatchReceipt(egg.getInstanceId(), egg.getTier(), "soup",
+			SpeciesRarity.COMMON, 65, 10, Palette.BASE, 56.4, 0.1));
+		CompanionInstance companion = state.revealActiveEgg();
+		assertTrue(state.stashActive());
+		assertTrue(state.sellStashedCompanion(companion.getInstanceId(), 100));
+		assertFalse(state.hasEggOrCompanion());
+		state.grantGotchiPoints(1_000);
+		assertFalse(state.purchaseToy(Toy.RUNE_BLOCKS));
+		assertFalse(state.purchaseBackdrop(com.gieligotchi.model.Backdrop.LUMBRIDGE));
 	}
 
 	@Test
