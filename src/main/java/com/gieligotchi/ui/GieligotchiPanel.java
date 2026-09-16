@@ -122,6 +122,7 @@ public class GieligotchiPanel extends PluginPanel
 	private int gameRound;
 	private int gameScore;
 	private String gameMessage = "Press Start for three quick rounds";
+	private boolean started;
 
 	@Inject
 	public GieligotchiPanel(GieligotchiStateService stateService, PetCatalogue catalogue,
@@ -197,13 +198,22 @@ public class GieligotchiPanel extends PluginPanel
 			}
 		});
 		animationTimer = new Timer(100, event -> display.repaint());
-		animationTimer.start();
+		refresh();
+	}
+
+	public void startUp()
+	{
+		if (started) { return; }
+		started = true;
 		stateService.addListener(stateListener);
+		animationTimer.start();
 		refresh();
 	}
 
 	public void shutDown()
 	{
+		if (!started) { return; }
+		started = false;
 		animationTimer.stop();
 		stateService.removeListener(stateListener);
 	}

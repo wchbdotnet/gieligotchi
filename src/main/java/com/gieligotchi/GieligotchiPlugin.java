@@ -114,6 +114,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			.priority(7)
 			.panel(panel)
 			.build();
+		panel.startUp();
 		clientToolbar.addNavigation(navigationButton);
 		overlay.syncMovement();
 		overlayManager.add(overlay);
@@ -392,13 +393,18 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		Rectangle bounds = overlay.getBounds();
 		if (bounds != null && bounds.contains(event.getPoint()))
 		{
-			if (hatchAnimation.isCeremonyActive()) { return null; }
+			if (hatchAnimation.isCeremonyActive())
+			{
+				event.consume();
+				return event;
+			}
 			ProfileState state = stateService.getState();
 			EggState egg = state == null ? null : state.getActiveEgg();
 			if (egg != null && egg.isReady()) { hatchAnimation.beginHatch(); }
 			else if (egg != null && !config.unlockOverlay()) { SwingUtilities.invokeLater(panel::inspectActive); }
 			else { return event; }
-			return null;
+			event.consume();
+			return event;
 		}
 		return event;
 	}
@@ -411,7 +417,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		if (bounds == null || !bounds.contains(event.getPoint())) { return event; }
 		overlayDragOffset = new Point(event.getX() - bounds.x, event.getY() - bounds.y);
 		overlayDragged = false;
-		return null;
+		event.consume();
+		return event;
 	}
 
 	@Override
@@ -421,7 +428,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		overlayDragOffset = null;
 		if (overlayDragged) { overlayManager.saveOverlay(overlay); }
 		overlayDragged = false;
-		return null;
+		event.consume();
+		return event;
 	}
 	@Override public MouseEvent mouseEntered(MouseEvent event) { return event; }
 	@Override public MouseEvent mouseExited(MouseEvent event) { overlay.setHovered(false); return event; }
@@ -445,7 +453,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		overlay.setBounds(new Rectangle(location, bounds.getSize()));
 		overlayDragged = true;
 		overlay.setHovered(true);
-		return null;
+		event.consume();
+		return event;
 	}
 	@Override public MouseEvent mouseMoved(MouseEvent event) { updateOverlayHover(event); return event; }
 
