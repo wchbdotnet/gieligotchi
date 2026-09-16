@@ -33,7 +33,7 @@ public interface GieligotchiConfig extends Config
 		description = "Scale the pixel-art overlay from 50% to 250%; 100% is the compact default", position = 4)
 	default int overlayScale() { return 100; }
 
-	@Range(min = 100, max = 160)
+	@Range(min = 100, max = 140)
 	@ConfigItem(keyName = "textScale", name = "Text size",
 		description = "Scale text throughout the Gieligotchi sidebar and overlay; 120% is the readable default",
 		position = 5)

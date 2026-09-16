@@ -65,7 +65,7 @@ public class GieligotchiOverlay extends Overlay
 		if (state == null) { return null; }
 		// The former 75% presentation is now the canonical 100% size.
 		double scale = config.overlayScale() / 100d * 0.75d;
-		double textScale = config.textScale() / 100d;
+		double textScale = Math.max(1d, Math.min(1.4d, config.textScale() / 100d));
 		if (hatchAnimation.isCeremonyActive()) { return renderCeremony(graphics, state, scale); }
 		boolean revealProgress = hovered;
 		int visualWidth = Math.max(80, (int) Math.round(132 * scale));
@@ -210,7 +210,7 @@ public class GieligotchiOverlay extends Overlay
 
 	private Dimension renderCeremony(Graphics2D graphics, ProfileState state, double scale)
 	{
-		double textScale = config.textScale() / 100d;
+		double textScale = Math.max(1d, Math.min(1.4d, config.textScale() / 100d));
 		int width = Math.max(210, (int) Math.round(270 * scale));
 		int height = Math.max(225, (int) Math.round(290 * scale));
 		boolean reveal = hatchAnimation.isRevealing();

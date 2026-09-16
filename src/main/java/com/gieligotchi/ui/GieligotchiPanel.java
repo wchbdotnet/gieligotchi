@@ -79,13 +79,15 @@ public class GieligotchiPanel extends PluginPanel
 	private static final int HATCHES_PER_PAGE = 10;
 	private static final int STASHED_COMPANIONS_PER_PAGE = 5;
 	private static final int COLLECTION_PER_PAGE = 15;
-	private static final int BACKDROPS_PER_PAGE = 5;
+	private static final int TOYS_PER_PAGE = 4;
+	private static final int BACKDROPS_PER_PAGE = 4;
 	private static final long TOY_PLAY_COOLDOWN_MILLIS = 5_000L;
 	private static final String DISCORD_INVITE = "https://discord.gg/dP9WN62QQE";
 	private static final String BASE_FONT_PROPERTY = "gieligotchi.baseFont";
 	private static final String BASE_MINIMUM_SIZE_PROPERTY = "gieligotchi.baseMinimumSize";
 	private static final String BASE_PREFERRED_SIZE_PROPERTY = "gieligotchi.basePreferredSize";
 	private static final String BASE_MAXIMUM_SIZE_PROPERTY = "gieligotchi.baseMaximumSize";
+	private static final String MAX_TEXT_SCALE_PROPERTY = "gieligotchi.maxTextScale";
 	private static final String HOME = "home";
 	private final GieligotchiStateService stateService;
 	private final PetCatalogue catalogue;
@@ -100,6 +102,7 @@ public class GieligotchiPanel extends PluginPanel
 	private final JPanel guide = new WidthTrackingPanel();
 	private final JPanel rules = new WidthTrackingPanel();
 	private final JPanel rarities = new WidthTrackingPanel();
+	private final JPanel navigation = new JPanel();
 	private final BootPanel boot = new BootPanel();
 	private final JLabel currency = new JLabel();
 	private final TamagotchiDisplay display = new TamagotchiDisplay();
@@ -111,12 +114,14 @@ public class GieligotchiPanel extends PluginPanel
 	private int hatchHistoryPage;
 	private int stashCompanionPage;
 	private int collectionPage;
+	private int toyShopPage;
 	private int backdropShopPage;
 	private int guidePage;
 	private int rulesPage;
 	private int careMemoryPage;
 	private boolean shopShowsToys = true;
 	private boolean activeCompanionCardMinimized;
+	private boolean stashTrayMinimized;
 	private String raritySection = "eggs";
 	private String activePage = HOME;
 	private String collectionPetId;
@@ -153,7 +158,8 @@ public class GieligotchiPanel extends PluginPanel
 		pageHost.add(wrap(rules), "rules");
 		pageHost.add(wrap(rarities), "rarities");
 		add(pageHost, BorderLayout.CENTER);
-		add(buildTabs(), BorderLayout.SOUTH);
+		rebuildNavigation();
+		add(navigation, BorderLayout.SOUTH);
 		showPage(HOME);
 		display.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		display.addMouseListener(new java.awt.event.MouseAdapter()
@@ -285,12 +291,14 @@ public class GieligotchiPanel extends PluginPanel
 		return header;
 	}
 
-	private JPanel buildTabs()
+	private void rebuildNavigation()
 	{
-		JPanel tabs = new JPanel();
-		tabs.setLayout(new BoxLayout(tabs, BoxLayout.Y_AXIS));
-		tabs.setBorder(new EmptyBorder(6, PAGE_GUTTER, 8, PAGE_GUTTER));
-		tabs.setBackground(new Color(0x171819));
+		navigation.removeAll();
+		navigationTabs.clear();
+		navigation.setLayout(new BoxLayout(navigation, BoxLayout.Y_AXIS));
+		navigation.setBorder(new EmptyBorder(6, PAGE_GUTTER, 8, PAGE_GUTTER));
+		navigation.setBackground(new Color(0x171819));
+		navigation.putClientProperty(MAX_TEXT_SCALE_PROPERTY, 1.2f);
 		JPanel primary = new JPanel(new GridLayout(1, 3, 3, 0));
 		primary.setOpaque(false);
 		primary.add(tab("Home", HOME));
@@ -301,10 +309,12 @@ public class GieligotchiPanel extends PluginPanel
 		reference.add(tab("Guide", "guide"));
 		reference.add(tab("Rules", "rules"));
 		reference.add(tab("Rarities", "rarities"));
-		tabs.add(primary);
-		tabs.add(Box.createVerticalStrut(3));
-		tabs.add(reference);
-		return tabs;
+		navigation.add(primary);
+		navigation.add(Box.createVerticalStrut(3));
+		navigation.add(reference);
+		applyTextScale(navigation);
+		navigation.revalidate();
+		navigation.repaint();
 	}
 
 	private JButton tab(String label, String page)
@@ -322,6 +332,7 @@ public class GieligotchiPanel extends PluginPanel
 	{
 		activePage = page;
 		pages.show(pageHost, page);
+		applyTextScale(pageHost);
 		for (JButton button : navigationTabs.values()) { updateButtonVisual(button); }
 	}
 
@@ -396,6 +407,7 @@ public class GieligotchiPanel extends PluginPanel
 	{
 		if (!SwingUtilities.isEventDispatchThread()) { SwingUtilities.invokeLater(this::refresh); return; }
 		ProfileState state = stateService.getState();
+		rebuildNavigation();
 		if (state != null && state.getActiveEgg() != null)
 		{
 			journeyMode = null;
@@ -412,9 +424,8 @@ public class GieligotchiPanel extends PluginPanel
 		display.setAlignmentX(CENTER_ALIGNMENT);
 		home.add(display);
 		home.add(Box.createVerticalStrut(8));
-		JLabel hint = new JLabel(activeHint(state), SwingConstants.CENTER);
+		JTextArea hint = fittedParagraph(activeHint(state), 12f, 190, 20);
 		hint.setAlignmentX(CENTER_ALIGNMENT);
-		hint.setFont(FontManager.getRunescapeSmallFont());
 		hint.setForeground(new Color(0xD8D8D8));
 		home.add(hint);
 		if (state != null && !state.isWelcomeSeen())
@@ -453,30 +464,41 @@ public class GieligotchiPanel extends PluginPanel
 
 	private void applyTextScale(Component component)
 	{
+		applyTextScale(component, textScale());
+	}
+
+	private void applyTextScale(Component component, float inheritedScale)
+	{
+		float componentScale = inheritedScale;
 		if (component instanceof JComponent)
 		{
 			JComponent swingComponent = (JComponent) component;
+			Object maximumScale = swingComponent.getClientProperty(MAX_TEXT_SCALE_PROPERTY);
+			if (maximumScale instanceof Number)
+			{
+				componentScale = Math.min(componentScale, ((Number) maximumScale).floatValue());
+			}
 			Font baseFont = (Font) swingComponent.getClientProperty(BASE_FONT_PROPERTY);
 			if (baseFont == null && component.getFont() != null)
 			{
 				baseFont = component.getFont();
 				swingComponent.putClientProperty(BASE_FONT_PROPERTY, baseFont);
 			}
-			if (baseFont != null) { component.setFont(baseFont.deriveFont(scaledFontSize(baseFont.getSize2D()))); }
+			if (baseFont != null) { component.setFont(baseFont.deriveFont(scaledFontSize(baseFont.getSize2D(), componentScale))); }
 			if (!(component instanceof TamagotchiDisplay))
 			{
-				scaleExplicitSize(swingComponent, BASE_MINIMUM_SIZE_PROPERTY, 0);
-				scaleExplicitSize(swingComponent, BASE_PREFERRED_SIZE_PROPERTY, 1);
-				scaleExplicitSize(swingComponent, BASE_MAXIMUM_SIZE_PROPERTY, 2);
+				scaleExplicitSize(swingComponent, BASE_MINIMUM_SIZE_PROPERTY, 0, componentScale);
+				scaleExplicitSize(swingComponent, BASE_PREFERRED_SIZE_PROPERTY, 1, componentScale);
+				scaleExplicitSize(swingComponent, BASE_MAXIMUM_SIZE_PROPERTY, 2, componentScale);
 			}
 		}
 		if (component instanceof Container)
 		{
-			for (Component child : ((Container) component).getComponents()) { applyTextScale(child); }
+			for (Component child : ((Container) component).getComponents()) { applyTextScale(child, componentScale); }
 		}
 	}
 
-	private void scaleExplicitSize(JComponent component, String property, int kind)
+	private void scaleExplicitSize(JComponent component, String property, int kind, float scale)
 	{
 		boolean explicitlySet = kind == 0 ? component.isMinimumSizeSet()
 			: kind == 1 ? component.isPreferredSizeSet() : component.isMaximumSizeSet();
@@ -489,15 +511,23 @@ public class GieligotchiPanel extends PluginPanel
 			component.putClientProperty(property, new Dimension(base));
 		}
 		int height = base.height > 0 && base.height < Integer.MAX_VALUE / 2
-			? Math.max(1, Math.round(base.height * textScale())) : base.height;
+			? Math.max(1, Math.round(base.height * scale)) : base.height;
 		Dimension scaled = new Dimension(base.width, height);
 		if (kind == 0) { component.setMinimumSize(scaled); }
 		else if (kind == 1) { component.setPreferredSize(scaled); }
 		else { component.setMaximumSize(scaled); }
 	}
 
-	private float textScale() { return Math.max(1f, config.textScale() / 100f); }
-	private float scaledFontSize(float size) { return Math.max(1f, size * textScale()); }
+	private float textScale() { return Math.max(1f, Math.min(1.4f, config.textScale() / 100f)); }
+	private float scaledFontSize(float size, float scale) { return Math.max(1f, size * scale); }
+	private boolean highTextScale() { return config.textScale() >= 140; }
+
+	private void finishRebuild(JPanel panel)
+	{
+		applyTextScale(panel);
+		panel.revalidate();
+		panel.repaint();
+	}
 
 	private JPanel buildWelcomeCard()
 	{
@@ -568,24 +598,20 @@ public class GieligotchiPanel extends PluginPanel
 		cardHeader.setAlignmentX(LEFT_ALIGNMENT);
 		cardHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
 		String rarity = pet == null ? "" : pet.getRarity().getDisplayName() + " · ";
-		JLabel identity = new JLabel(rarity + companion.getPalette().getDisplayName());
-		identity.setFont(FontManager.getRunescapeSmallFont().deriveFont(13f));
+		JTextArea identity = fittedParagraph(rarity + companion.getPalette().getDisplayName(), 13f, 190, 17);
 		identity.setForeground(RarityColours.palette(companion.getPalette()));
 		identity.setAlignmentX(LEFT_ALIGNMENT);
-		JLabel progress = new JLabel(level >= 99 ? "Level 99 · Max level · " + format(companion.getLifetimeXp()) + " XP"
-			: "Level " + level + " · " + format(levelXp) + " / " + format(nextXp) + " XP this level");
-		progress.setFont(FontManager.getRunescapeSmallFont().deriveFont(12f));
+		JTextArea progress = fittedParagraph(level >= 99 ? "Level 99 · Max level · " + format(companion.getLifetimeXp()) + " XP"
+			: "Level " + level + " · " + format(levelXp) + " / " + format(nextXp) + " XP this level", 12f, 190, 17);
 		progress.setForeground(new Color(0xD8D8D8));
 		progress.setAlignmentX(LEFT_ALIGNMENT);
 		String personality = companion.getPersonality() == null ? "Personality undiscovered" : companion.getPersonality().getDisplayName();
-		JLabel bond = new JLabel("♥ " + companion.getAffectionHearts() + " · "
-			+ companion.getRelationshipStage().getDisplayName() + "  |  " + personality);
-		bond.setFont(FontManager.getRunescapeSmallFont().deriveFont(12f));
+		JTextArea bond = fittedParagraph("♥ " + companion.getAffectionHearts() + " · "
+			+ companion.getRelationshipStage().getDisplayName() + "  |  " + personality, 12f, 190, 17);
 		bond.setForeground(new Color(0xE4A3A0));
 		bond.setAlignmentX(LEFT_ALIGNMENT);
-		JLabel value = new JLabel(format(companion.getLifetimeXp()) + " lifetime XP  ·  "
-			+ format(CompanionValue.saleValue(companion)) + " GPts value");
-		value.setFont(FontManager.getRunescapeSmallFont().deriveFont(12f));
+		JTextArea value = fittedParagraph(format(companion.getLifetimeXp()) + " lifetime XP  ·  "
+			+ format(CompanionValue.saleValue(companion)) + " GPts value", 12f, 190, 17);
 		value.setForeground(new Color(0xBEB28C));
 		value.setAlignmentX(LEFT_ALIGNMENT);
 		card.add(cardHeader);
@@ -600,7 +626,8 @@ public class GieligotchiPanel extends PluginPanel
 			card.add(value);
 		}
 		card.setAlignmentX(CENTER_ALIGNMENT);
-		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, activeCompanionCardMinimized ? 54 : 100));
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE,
+			activeCompanionCardMinimized ? 54 : highTextScale() ? 136 : 100));
 		return card;
 	}
 
@@ -932,18 +959,38 @@ public class GieligotchiPanel extends PluginPanel
 		panel.setBorder(BorderFactory.createCompoundBorder(
 			BorderFactory.createLineBorder(new Color(0x49443A)), new EmptyBorder(8, 8, 8, 8)));
 		JLabel title = new JLabel("STASH TRAY");
-		title.setFont(FontManager.getRunescapeBoldFont());
+		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
 		title.setForeground(new Color(0xD7B867));
 		int eggs = state == null ? 0 : state.getStashedEggs().size();
 		int companions = state == null ? 0 : state.getStashedCompanions().size();
-		JPanel heading = new JPanel(new BorderLayout());
+		JPanel heading = new JPanel(new BorderLayout(3, 0));
 		heading.setOpaque(false);
+		heading.putClientProperty(MAX_TEXT_SCALE_PROPERTY, 1.2f);
 		heading.add(title, BorderLayout.WEST);
 		JLabel contents = new JLabel("Eggs " + eggs + "  •  Pets " + companions);
 		contents.setForeground(new Color(0xC4C4C4));
-		contents.setFont(FontManager.getRunescapeSmallFont());
-		heading.add(contents, BorderLayout.EAST);
+		contents.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
+		JButton minimize = styledButton(stashTrayMinimized ? "+" : "−", 12f);
+		minimize.setToolTipText(stashTrayMinimized ? "Expand Stash Tray" : "Minimise Stash Tray");
+		minimize.setMargin(new Insets(0, 0, 0, 0));
+		minimize.setPreferredSize(new Dimension(24, 20));
+		minimize.addActionListener(event ->
+		{
+			stashTrayMinimized = !stashTrayMinimized;
+			refresh();
+		});
+		JPanel summary = new JPanel(new BorderLayout(3, 0));
+		summary.setOpaque(false);
+		summary.add(contents, BorderLayout.CENTER);
+		summary.add(minimize, BorderLayout.EAST);
+		heading.add(summary, BorderLayout.EAST);
 		panel.add(heading, BorderLayout.NORTH);
+		panel.setAlignmentX(CENTER_ALIGNMENT);
+		if (stashTrayMinimized)
+		{
+			panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+			return panel;
+		}
 
 		JPanel actions = new JPanel();
 		actions.setLayout(new BoxLayout(actions, BoxLayout.Y_AXIS));
@@ -1002,7 +1049,6 @@ public class GieligotchiPanel extends PluginPanel
 			actions.add(empty);
 		}
 		panel.add(actions, BorderLayout.CENTER);
-		panel.setAlignmentX(CENTER_ALIGNMENT);
 		panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46 + actions.getPreferredSize().height));
 		return panel;
 	}
@@ -1172,8 +1218,7 @@ public class GieligotchiPanel extends PluginPanel
 			else { collection.add(buildPetCollectionDetail(selected, state), BorderLayout.CENTER); }
 		}
 		else { collection.add(buildCompanionGrid(state), BorderLayout.CENTER); }
-		collection.revalidate();
-		collection.repaint();
+		finishRebuild(collection);
 	}
 
 	private JPanel buildCompanionGrid(ProfileState state)
@@ -1362,6 +1407,7 @@ public class GieligotchiPanel extends PluginPanel
 		{
 			boolean unlocked = discovery != null && discovery.getPalettes().contains(palette);
 			JButton tile = styledButton(unlocked ? palette.getDisplayName() : "?", 10f);
+			tile.putClientProperty(MAX_TEXT_SCALE_PROPERTY, 1.2f);
 			tile.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
 			tile.setVerticalTextPosition(SwingConstants.BOTTOM);
 			tile.setHorizontalTextPosition(SwingConstants.CENTER);
@@ -1423,7 +1469,7 @@ public class GieligotchiPanel extends PluginPanel
 		JButton backdropTab = styledButton("Backdrops", 12f);
 		toyTab.setEnabled(!shopShowsToys);
 		backdropTab.setEnabled(shopShowsToys);
-		toyTab.addActionListener(event -> { shopShowsToys = true; rebuildShop(stateService.getState()); });
+		toyTab.addActionListener(event -> { shopShowsToys = true; toyShopPage = 0; rebuildShop(stateService.getState()); });
 		backdropTab.addActionListener(event -> { shopShowsToys = false; backdropShopPage = 0; rebuildShop(stateService.getState()); });
 		categories.add(toyTab); categories.add(backdropTab);
 		categories.setMaximumSize(new Dimension(Integer.MAX_VALUE, 31));
@@ -1433,11 +1479,19 @@ public class GieligotchiPanel extends PluginPanel
 		if (shopShowsToys)
 		{
 			sectionLabel(shop, "TOY SHOP");
-			for (Toy toy : Toy.values())
+			Toy[] toys = Toy.values();
+			int pageCount = Math.max(1, (toys.length + TOYS_PER_PAGE - 1) / TOYS_PER_PAGE);
+			toyShopPage = Math.max(0, Math.min(toyShopPage, pageCount - 1));
+			int first = toyShopPage * TOYS_PER_PAGE;
+			for (int i = first; i < Math.min(toys.length, first + TOYS_PER_PAGE); i++)
 			{
-				shop.add(buildToyShopCard(toy, state));
+				shop.add(buildToyShopCard(toys[i], state));
 				shop.add(Box.createVerticalStrut(6));
 			}
+			shop.add(pageControls("Toys " + (toyShopPage + 1) + " / " + pageCount,
+				toyShopPage > 0, toyShopPage + 1 < pageCount,
+				() -> { toyShopPage--; rebuildShop(stateService.getState()); },
+				() -> { toyShopPage++; rebuildShop(stateService.getState()); }));
 		}
 		else
 		{
@@ -1456,8 +1510,7 @@ public class GieligotchiPanel extends PluginPanel
 				() -> { backdropShopPage--; rebuildShop(stateService.getState()); },
 				() -> { backdropShopPage++; rebuildShop(stateService.getState()); }));
 		}
-		shop.revalidate();
-		shop.repaint();
+		finishRebuild(shop);
 	}
 
 	private JPanel buildToyShopCard(Toy toy, ProfileState state)
@@ -1568,7 +1621,7 @@ public class GieligotchiPanel extends PluginPanel
 		intro.setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
 		rarities.add(intro);
 		rarities.add(Box.createVerticalStrut(10));
-		JPanel categories = new JPanel(new GridLayout(1, 3, 4, 0));
+		JPanel categories = new JPanel(new GridLayout(0, highTextScale() ? 2 : 3, 4, 4));
 		categories.setOpaque(false);
 		for (String section : new String[]{"eggs", "species", "colours"})
 		{
@@ -1577,7 +1630,7 @@ public class GieligotchiPanel extends PluginPanel
 			tab.addActionListener(event -> { raritySection = section; rebuildRarities(); });
 			categories.add(tab);
 		}
-		categories.setMaximumSize(new Dimension(Integer.MAX_VALUE, 31));
+		categories.setMaximumSize(new Dimension(Integer.MAX_VALUE, highTextScale() ? 66 : 31));
 		categories.setAlignmentX(LEFT_ALIGNMENT);
 		rarities.add(categories);
 		rarities.add(Box.createVerticalStrut(9));
@@ -1613,8 +1666,7 @@ public class GieligotchiPanel extends PluginPanel
 				rarities.add(Box.createVerticalStrut(3));
 			}
 		}
-		rarities.revalidate();
-		rarities.repaint();
+		finishRebuild(rarities);
 	}
 
 	private void rebuildGuide()
@@ -1635,8 +1687,7 @@ public class GieligotchiPanel extends PluginPanel
 			{"8 · LONG-TERM GOALS", "High-level and deeply bonded companions gain special recognition. Some rewards, memories and presentation details are best discovered through play."}
 		};
 		addPagedCards(guide, entries, guidePage, page -> { guidePage = page; rebuildGuide(); });
-		guide.revalidate();
-		guide.repaint();
+		finishRebuild(guide);
 	}
 
 	private void rebuildRules()
@@ -1659,8 +1710,7 @@ public class GieligotchiPanel extends PluginPanel
 			{"KEEP SOME MYSTERY", "Exact reward formulas and the rarest combinations are not listed. The Rarities page offers broad guidance without spoiling every outcome."}
 		};
 		addPagedCards(rules, entries, rulesPage, page -> { rulesPage = page; rebuildRules(); });
-		rules.revalidate();
-		rules.repaint();
+		finishRebuild(rules);
 	}
 
 	private void pageHeading(JPanel page, String heading, String introCopy)
@@ -1768,13 +1818,12 @@ public class GieligotchiPanel extends PluginPanel
 		JLabel swatch = new JLabel("◆", SwingConstants.CENTER);
 		swatch.setForeground(colour);
 		swatch.setPreferredSize(new Dimension(20, 27));
-		JLabel copy = new JLabel(name + "  ·  " + details);
-		copy.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
+		JTextArea copy = fittedParagraph(name + "  ·  " + details, 11f, 165, 27);
 		copy.setForeground(new Color(0xDDDDDD));
 		row.add(swatch, BorderLayout.WEST);
 		row.add(copy, BorderLayout.CENTER);
 		row.setAlignmentX(LEFT_ALIGNMENT);
-		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, highTextScale() ? 42 : 28));
 		return row;
 	}
 
@@ -1818,6 +1867,7 @@ public class GieligotchiPanel extends PluginPanel
 	{
 		Discovery discovery = state == null ? null : state.getDiscoveries().get(pet.getId());
 		JButton tile = styledButton(discovery == null ? "?" : "", 11f);
+		tile.putClientProperty(MAX_TEXT_SCALE_PROPERTY, 1.2f);
 		tile.setToolTipText(pet.getName() + " — " + pet.getRarity().getDisplayName());
 		tile.setPreferredSize(new Dimension(68, 74));
 		tile.setFont(FontManager.getRunescapeBoldFont().deriveFont(22f));
