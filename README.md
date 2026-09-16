@@ -10,6 +10,8 @@
 </p>
 
 <p align="center">
+  <a href="https://runelite.net/plugin-hub/show/gieligotchi">Install from RuneLite</a>
+  &nbsp;&bull;&nbsp;
   <a href="https://discord.gg/dP9WN62QQE">Join the Discord</a>
   &nbsp;&bull;&nbsp;
   <a href="#how-it-works">How it works</a>
@@ -105,12 +107,6 @@ events only to recognise ordinary play and update its own cosmetic companion.
 
 The companion is a RuneLite interface element, not an in-world NPC, and provides
 no gameplay advantage.
-
-## Installation status
-
-Gieligotchi has been submitted for RuneLite Plugin Hub review. It is not yet
-available through the Plugin Hub; its submission can be followed in
-[Plugin Hub pull request #16119](https://github.com/runelite/plugin-hub/pull/16119).
 
 ## Community
 
