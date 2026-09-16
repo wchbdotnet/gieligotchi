@@ -11,8 +11,6 @@ import urllib.request
 
 
 REPOSITORY = "runelite/plugin-hub"
-PR_NUMBER = 16612
-PR_URL = f"https://github.com/{REPOSITORY}/pull/{PR_NUMBER}"
 API = "https://api.github.com"
 STATE_FILE = Path(".plugin-hub-monitor/state.json")
 
@@ -45,6 +43,19 @@ def discord(payload):
         pass
 
 
+def find_latest_pr():
+    pulls = github(f"/repos/{REPOSITORY}/pulls?state=all&sort=updated&direction=desc&per_page=100")
+    for pull in pulls:
+        author = (pull.get("user") or {}).get("login", "").lower()
+        head_repository = ((pull.get("head") or {}).get("repo") or {}).get("full_name", "").lower()
+        if author != "wchbdotnet" and head_repository != "wchbdotnet/plugin-hub":
+            continue
+        files = github(f"/repos/{REPOSITORY}/pulls/{pull['number']}/files?per_page=100")
+        if any(item.get("filename") == "plugins/gieligotchi" for item in files):
+            return pull
+    raise RuntimeError("No Gieligotchi Plugin Hub pull request was found")
+
+
 def clean(text: str, limit: int = 500):
     text = " ".join((text or "").split())
     return text if len(text) <= limit else text[: limit - 1] + "…"
@@ -58,9 +69,12 @@ def set_changed(value: bool):
 
 
 def main():
-    pr = github(f"/repos/{REPOSITORY}/pulls/{PR_NUMBER}")
-    comments = github(f"/repos/{REPOSITORY}/issues/{PR_NUMBER}/comments?per_page=100")
-    reviews = github(f"/repos/{REPOSITORY}/pulls/{PR_NUMBER}/reviews?per_page=100")
+    discovered = find_latest_pr()
+    pr_number = discovered["number"]
+    pr_url = f"https://github.com/{REPOSITORY}/pull/{pr_number}"
+    pr = github(f"/repos/{REPOSITORY}/pulls/{pr_number}")
+    comments = github(f"/repos/{REPOSITORY}/issues/{pr_number}/comments?per_page=100")
+    reviews = github(f"/repos/{REPOSITORY}/pulls/{pr_number}/reviews?per_page=100")
     checks = github(f"/repos/{REPOSITORY}/commits/{pr['head']['sha']}/check-runs?per_page=100")["check_runs"]
 
     snapshot = {
@@ -118,8 +132,8 @@ def main():
         "username": "Gieligotchi GitHub",
         "allowed_mentions": {"parse": []},
         "embeds": [{
-            "title": f"RuneLite Plugin Hub PR #{PR_NUMBER} updated",
-            "url": PR_URL,
+            "title": f"RuneLite Plugin Hub PR #{pr_number} updated",
+            "url": pr_url,
             "description": clean(pr["title"]),
             "color": colour,
             "fields": fields,
