@@ -15,7 +15,7 @@ public final class SkillRewardPolicy
 
 	public static long npcKillAward(int combatLevel)
 	{
-		return Math.max(0, combatLevel) * 10L;
+		return Math.min(Math.max(0, combatLevel) * 5L, 400L);
 	}
 
 	public static long observe(ProfileState state, Skill skill, int xp)
@@ -51,11 +51,19 @@ public final class SkillRewardPolicy
 	public static int levelUpAward(int level)
 	{
 		int clamped = Math.max(1, Math.min(Experience.MAX_VIRT_LEVEL, level));
-		if (clamped <= 2) { return 1_000; }
-		if (clamped >= Experience.MAX_REAL_LEVEL) { return 20_000; }
-		double progress = (clamped - 2d) / 97d;
-		double curve = Math.pow(progress, 2.5d);
-		return (int) Math.round(1_000d * Math.pow(20d, curve));
+		if (clamped <= 2) { return 1_250; }
+		if (clamped >= Experience.MAX_REAL_LEVEL) { return 35_000; }
+		if (clamped <= 20) { return interpolate(clamped, 2, 1_250, 20, 1_800); }
+		if (clamped <= 40) { return interpolate(clamped, 20, 1_800, 40, 3_000); }
+		if (clamped <= 60) { return interpolate(clamped, 40, 3_000, 60, 5_000); }
+		if (clamped <= 80) { return interpolate(clamped, 60, 5_000, 80, 10_000); }
+		return interpolate(clamped, 80, 10_000, 99, 35_000);
+	}
+
+	private static int interpolate(int level, int fromLevel, int fromAward, int toLevel, int toAward)
+	{
+		double progress = (level - fromLevel) / (double) (toLevel - fromLevel);
+		return (int) (Math.round((fromAward + (toAward - fromAward) * progress) / 100d) * 100L);
 	}
 
 	public static int levelForXp(int xp)

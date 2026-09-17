@@ -14,6 +14,7 @@ import com.gieligotchi.service.CompanionValue;
 import com.gieligotchi.service.PetCatalogue;
 import com.gieligotchi.service.SkillRewardPolicy;
 import com.gieligotchi.service.ActivityRewardPolicy;
+import com.gieligotchi.service.BossRegistry;
 import com.gieligotchi.service.QuestRewardPolicy;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
@@ -33,8 +34,10 @@ public class ProgressionModelTest
 		assertEquals(2, SkillRewardPolicy.observe(state, Skill.WOODCUTTING, 1_020));
 		assertEquals(0, SkillRewardPolicy.observe(state, Skill.ATTACK, 1_000));
 		assertEquals(20, SkillRewardPolicy.observe(state, Skill.ATTACK, 1_100));
-		assertEquals(20, SkillRewardPolicy.npcKillAward(2));
+		assertEquals(10, SkillRewardPolicy.npcKillAward(2));
 		assertEquals(0, SkillRewardPolicy.npcKillAward(0));
+		assertEquals(400, SkillRewardPolicy.npcKillAward(96));
+		assertEquals(400, SkillRewardPolicy.npcKillAward(146));
 	}
 
 	@Test
@@ -42,7 +45,7 @@ public class ProgressionModelTest
 	{
 		ProfileState state = ProfileState.fresh("levels");
 		assertEquals(0, SkillRewardPolicy.observe(state, Skill.ATTACK, 0));
-		assertEquals(1_016, SkillRewardPolicy.observe(state, Skill.ATTACK, 83));
+		assertEquals(1_266, SkillRewardPolicy.observe(state, Skill.ATTACK, 83));
 		assertEquals(1_500, ActivityRewardPolicy.match(
 			"Congratulations, you've completed a quest: Cook's Assistant").getAmount());
 		assertEquals(5_000, ActivityRewardPolicy.match(
@@ -56,12 +59,45 @@ public class ProgressionModelTest
 			"Your completed Chambers of Xeric Challenge Mode count is: 1").getAmount());
 		assertEquals(2_000, ActivityRewardPolicy.match(
 			"You have completed 12 medium Treasure Trails.").getAmount());
-		assertEquals(35_000, ActivityRewardPolicy.npcKillAward("TzKal-Zuk", 1400));
+		assertEquals(30_000, ActivityRewardPolicy.npcKillAward("TzTok-Jad", 702));
+		assertEquals(100_000, ActivityRewardPolicy.npcKillAward("TzKal-Zuk", 1400));
+		assertEquals(50_000, ActivityRewardPolicy.npcKillAward("Sol Heredit", 1563));
 		assertEquals(10_240, ActivityRewardPolicy.npcKillAward("Phosani's Nightmare", 1024));
+		assertEquals(8_900, ActivityRewardPolicy.npcKillAward("Araxxor", 890));
+		assertEquals(400, ActivityRewardPolicy.npcKillAward("Araxyte", 146));
 		assertTrue(ActivityRewardPolicy.isMajorChallenge("cox"));
 		assertTrue(ActivityRewardPolicy.isMajorChallenge("corrupted_gauntlet"));
 		assertFalse(ActivityRewardPolicy.isMajorChallenge("pest_control_blue"));
 		assertTrue(ActivityRewardPolicy.isQuestOrClue("clue_master"));
+	}
+
+	@Test
+	public void bossRegistryIsComprehensiveAndDoesNotPromoteOrdinaryMobs()
+	{
+		assertTrue(BossRegistry.isBoss(-1, "General Graardor"));
+		assertTrue(BossRegistry.isBoss(-1, "Great Olm"));
+		assertTrue(BossRegistry.isBoss(-1, "Fragment of Seren"));
+		assertTrue(BossRegistry.isBoss(240, "Black demon"));
+		assertFalse(BossRegistry.isBoss(1432, "Black demon"));
+		assertFalse(BossRegistry.isBoss(-1, "Araxyte"));
+		assertFalse(BossRegistry.isBoss(-1, "Cave kraken"));
+	}
+
+	@Test
+	public void levelUpRewardsFollowTheRebalancedMilestones()
+	{
+		assertEquals(1_250, SkillRewardPolicy.levelUpAward(2));
+		assertEquals(1_800, SkillRewardPolicy.levelUpAward(20));
+		assertEquals(3_000, SkillRewardPolicy.levelUpAward(40));
+		assertEquals(5_000, SkillRewardPolicy.levelUpAward(60));
+		assertEquals(10_000, SkillRewardPolicy.levelUpAward(80));
+		assertEquals(35_000, SkillRewardPolicy.levelUpAward(99));
+		assertEquals(35_000, SkillRewardPolicy.levelUpAward(126));
+		for (int level = 2; level < 126; level++)
+		{
+			assertTrue(SkillRewardPolicy.levelUpAward(level + 1)
+				>= SkillRewardPolicy.levelUpAward(level));
+		}
 	}
 
 	@Test

@@ -99,10 +99,10 @@ public class GieligotchiStateService
 		return award;
 	}
 
-	public synchronized long awardNpcKill(String name, int combatLevel)
+	public synchronized long awardNpcKill(int npcId, String name, int combatLevel)
 	{
 		if (state == null) { return 0; }
-		long amount = ActivityRewardPolicy.npcKillAward(name, combatLevel);
+		long amount = ActivityRewardPolicy.npcKillAward(npcId, name, combatLevel);
 		state.award(amount);
 		recordLevel99IfNeeded();
 		if (state.getActiveCompanion() != null) { state.getActiveCompanion().recordNpcKill(name, combatLevel); }

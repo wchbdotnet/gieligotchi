@@ -424,9 +424,13 @@ public class GieligotchiPanel extends PluginPanel
 		display.setAlignmentX(CENTER_ALIGNMENT);
 		home.add(display);
 		home.add(Box.createVerticalStrut(8));
-		JTextArea hint = fittedParagraph(activeHint(state), 12f, 190, 20);
+		JLabel hint = new JLabel(activeHint(state), SwingConstants.CENTER);
+		hint.setFont(FontManager.getRunescapeSmallFont().deriveFont(12f));
 		hint.setAlignmentX(CENTER_ALIGNMENT);
 		hint.setForeground(new Color(0xD8D8D8));
+		hint.setMinimumSize(new Dimension(0, 20));
+		hint.setPreferredSize(new Dimension(190, 20));
+		hint.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 		home.add(hint);
 		if (state != null && !state.isWelcomeSeen())
 		{

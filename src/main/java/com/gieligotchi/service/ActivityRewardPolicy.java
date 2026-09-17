@@ -29,14 +29,21 @@ public final class ActivityRewardPolicy
 		return null;
 	}
 
-	public static long npcKillAward(String npcName, int combatLevel)
+	public static long npcKillAward(int npcId, String npcName, int combatLevel)
 	{
 		String name = npcName == null ? "" : npcName.trim().toLowerCase(Locale.ENGLISH);
-		long base = SkillRewardPolicy.npcKillAward(combatLevel);
-		if ("tztok-jad".equals(name)) { return Math.max(base, 10_000L); }
-		if ("tzkal-zuk".equals(name)) { return Math.max(base, 35_000L); }
-		if ("sol heredit".equals(name)) { return Math.max(base, 10_000L); }
+		long base = BossRegistry.isBoss(npcId, npcName)
+			? Math.max(0, combatLevel) * 10L
+			: SkillRewardPolicy.npcKillAward(combatLevel);
+		if ("tztok-jad".equals(name)) { return Math.max(base, 30_000L); }
+		if ("tzkal-zuk".equals(name)) { return Math.max(base, 100_000L); }
+		if ("sol heredit".equals(name)) { return Math.max(base, 50_000L); }
 		return base;
+	}
+
+	public static long npcKillAward(String npcName, int combatLevel)
+	{
+		return npcKillAward(-1, npcName, combatLevel);
 	}
 
 	public static long slayerTaskAward() { return SLAYER_TASK_AWARD; }

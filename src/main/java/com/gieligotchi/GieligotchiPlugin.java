@@ -272,7 +272,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		NPC npc = (NPC) event.getActor();
 		Integer engagedAt = engagedNpcTicks.remove(npc.getIndex());
 		if (engagedAt == null || client.getTickCount() - engagedAt > 12) { return; }
-		long award = stateService.awardNpcKill(npc.getName(), npc.getCombatLevel());
+		long award = stateService.awardNpcKill(npc.getId(), npc.getName(), npc.getCombatLevel());
 		if (award > 0) { notifyIfReady(); }
 	}
 
