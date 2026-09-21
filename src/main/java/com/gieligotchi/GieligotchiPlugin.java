@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.inject.Inject;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
@@ -42,6 +43,8 @@ import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
@@ -74,6 +77,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Inject private MouseManager mouseManager;
 	@Inject private Notifier notifier;
 	@Inject private ItemManager itemManager;
+	@Inject private ConfigManager configManager;
+	@Inject private ChatMessageManager chatMessageManager;
 	private NavigationButton navigationButton;
 	private String loadedProfileKey;
 	private boolean welcomeOpening;
@@ -109,6 +114,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			.priority(7)
 			.panel(panel)
 			.build();
+		panel.startUp();
 		clientToolbar.addNavigation(navigationButton);
 		overlay.syncMovement();
 		overlayManager.add(overlay);
@@ -187,8 +193,14 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			{
 				if (skill != Skill.OVERALL) { currentXp.put(skill, client.getSkillExperience(skill)); }
 			}
-			stateService.synchronizeSkillBaselines(currentXp);
+			long reconciledXp = stateService.reconcileLoginXp(currentXp, client.getOverallExperience());
 			skillBaselinesSynchronized = true;
+			if (reconciledXp > 0)
+			{
+				queueSystemMessage("Welcome back! You gained " + format(reconciledXp)
+					+ " Bonding XP from progress made while you were away.");
+				notifyIfReady();
+			}
 		}
 		int currentTick = client.getTickCount();
 		engagedNpcTicks.entrySet().removeIf(entry -> currentTick - entry.getValue() > 12);
@@ -228,7 +240,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onStatChanged(StatChanged event)
 	{
-		long award = stateService.observeSkill(event.getSkill(), event.getXp());
+		if (!skillBaselinesSynchronized) { return; }
+		long award = stateService.observeSkill(event.getSkill(), event.getXp(), client.getOverallExperience());
 		if (award > 0) { notifyIfReady(); }
 	}
 
@@ -259,7 +272,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		NPC npc = (NPC) event.getActor();
 		Integer engagedAt = engagedNpcTicks.remove(npc.getIndex());
 		if (engagedAt == null || client.getTickCount() - engagedAt > 12) { return; }
-		long award = stateService.awardNpcKill(npc.getName(), npc.getCombatLevel());
+		long award = stateService.awardNpcKill(npc.getId(), npc.getName(), npc.getCombatLevel());
 		if (award > 0) { notifyIfReady(); }
 	}
 
@@ -268,7 +281,9 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	{
 		if (event == null || (event.getType() != ChatMessageType.GAMEMESSAGE
 			&& event.getType() != ChatMessageType.SPAM)) { return; }
-		ActivityRewardPolicy.Reward reward = ActivityRewardPolicy.match(Text.removeTags(event.getMessage()));
+		String message = Text.removeTags(event.getMessage());
+		stateService.recordSkillingActivity(com.gieligotchi.model.SkillingActivity.match(message));
+		ActivityRewardPolicy.Reward reward = ActivityRewardPolicy.match(message);
 		if (reward == null) { return; }
 		long now = System.currentTimeMillis();
 		Long previous = recentActivityAwards.get(reward.getId());
@@ -287,13 +302,52 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	{
 		if (GieligotchiConfig.GROUP.equals(event.getGroup()))
 		{
+			if ("resetAccount".equals(event.getKey()) && config.resetAccount())
+			{
+				SwingUtilities.invokeLater(this::confirmAccountReset);
+				return;
+			}
 			overlay.syncMovement();
 			if (!config.unlockOverlay())
 			{
 				overlayDragOffset = null;
 				overlayDragged = false;
 			}
+			if ("textScale".equals(event.getKey())) { panel.refresh(); }
 		}
+	}
+
+	private void confirmAccountReset()
+	{
+		int choice = JOptionPane.showConfirmDialog(panel,
+			"This will permanently erase every Gieligotchi egg, companion, collection entry,\n"
+				+ "purchase, memory and point for the current account.\n\nStart over from a new starter egg?",
+			"Reset Gieligotchi account", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+		welcomeOpening = false;
+		if (choice == JOptionPane.YES_OPTION && stateService.resetProfile())
+		{
+			hatchAnimation.reset();
+			skillBaselinesSynchronized = false;
+			lastRegionId = -1;
+			lastSlayerCount = -1;
+			queueSystemMessage("Your Gieligotchi account has been reset. A new starter egg is waiting for you.");
+		}
+		configManager.setConfiguration(GieligotchiConfig.GROUP, "resetAccount", false);
+	}
+
+	private void queueSystemMessage(String message)
+	{
+		String plain = "[Gieligotchi] " + message;
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.value(plain)
+			.runeLiteFormattedMessage("<col=ffcc66>[Gieligotchi]</col> " + message)
+			.build());
+	}
+
+	private static String format(long amount)
+	{
+		return String.format(Locale.UK, "%,d", amount);
 	}
 
 	private void loadCurrentProfile()
@@ -342,13 +396,18 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		Rectangle bounds = overlay.getBounds();
 		if (bounds != null && bounds.contains(event.getPoint()))
 		{
-			if (hatchAnimation.isCeremonyActive()) { return null; }
+			if (hatchAnimation.isCeremonyActive())
+			{
+				event.consume();
+				return event;
+			}
 			ProfileState state = stateService.getState();
 			EggState egg = state == null ? null : state.getActiveEgg();
 			if (egg != null && egg.isReady()) { hatchAnimation.beginHatch(); }
 			else if (egg != null && !config.unlockOverlay()) { SwingUtilities.invokeLater(panel::inspectActive); }
 			else { return event; }
-			return null;
+			event.consume();
+			return event;
 		}
 		return event;
 	}
@@ -361,7 +420,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		if (bounds == null || !bounds.contains(event.getPoint())) { return event; }
 		overlayDragOffset = new Point(event.getX() - bounds.x, event.getY() - bounds.y);
 		overlayDragged = false;
-		return null;
+		event.consume();
+		return event;
 	}
 
 	@Override
@@ -371,7 +431,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		overlayDragOffset = null;
 		if (overlayDragged) { overlayManager.saveOverlay(overlay); }
 		overlayDragged = false;
-		return null;
+		event.consume();
+		return event;
 	}
 	@Override public MouseEvent mouseEntered(MouseEvent event) { return event; }
 	@Override public MouseEvent mouseExited(MouseEvent event) { overlay.setHovered(false); return event; }
@@ -395,7 +456,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		overlay.setBounds(new Rectangle(location, bounds.getSize()));
 		overlayDragged = true;
 		overlay.setHovered(true);
-		return null;
+		event.consume();
+		return event;
 	}
 	@Override public MouseEvent mouseMoved(MouseEvent event) { updateOverlayHover(event); return event; }
 

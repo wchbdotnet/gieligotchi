@@ -1,0 +1,212 @@
+# Gieligotchi boss registry
+# Source: https://oldschool.runescape.wiki/w/Boss
+# Reviewed: 2026-09-17
+#
+# RuneLite has no isBoss flag. Add newly released bosses here using the exact
+# in-game NPC name. Use an id: entry instead where a boss shares its name with
+# an ordinary NPC.
+
+# World, wilderness and instanced bosses
+Ahrim the Blighted
+Karil the Tainted
+Dharok the Wretched
+Guthan the Infested
+Torag the Corrupted
+Verac the Defiled
+Gemstone Crab
+Scurrius
+Giant Mole
+Deranged Archaeologist
+Dagannoth Supreme
+Dagannoth Rex
+Dagannoth Prime
+Sarachnis
+Blood Moon
+Blue Moon
+Eclipse Moon
+Kalphite Queen
+Kree'arra
+Commander Zilyana
+General Graardor
+K'ril Tsutsaroth
+The Hueycoatl
+Corporeal Beast
+Nex
+Chaos Fanatic
+Crazy archaeologist
+Scorpia
+King Black Dragon
+Chaos Elemental
+Revenant maledictus
+Calvar'ion
+Vet'ion
+Spindel
+Venenatis
+Artio
+Callisto
+Brutus
+Demonic Brutus
+Obor
+Bryophyta
+Amoxliatl
+Branda the Fire Queen
+Eldric the Ice King
+Doom of Mokhaiotl
+Mad Angel
+Zulrah
+Vorkath
+Phantom Muspah
+Maggot King
+The Nightmare
+Phosani's Nightmare
+Yama
+Duke Sucellus
+The Leviathan
+The Whisperer
+Vardorvis
+The Mimic
+Hespori
+Skotizo
+
+# Slayer bosses
+Shellbane gryphon
+Dusk
+Dawn
+Abyssal Sire
+Kraken
+Cerberus
+Araxxor
+Thermonuclear smoke devil
+Alchemical Hydra
+
+# Minigame and skilling bosses
+Crystalline Hunllef
+Corrupted Hunllef
+TzTok-Jad
+TzKal-Zuk
+Sol Heredit
+Tempoross
+Wintertodt
+Zalcano
+
+# Chambers of Xeric
+Tekton
+Vanguard
+Vespula
+Vasa Nistirio
+Muttadile
+Great Olm
+
+# Theatre of Blood
+The Maiden of Sugadinti
+Pestilent Bloat
+Nylocas Vasilias
+Sotetseg
+Xarpus
+Verzik Vitur
+
+# Tombs of Amascut
+Akkha
+Ba-Ba
+Kephri
+Zebak
+Tumeken's Warden
+Elidinis' Warden
+
+# Quest bosses
+Abomination
+Agrith-Naar
+Ancient Guardian
+Arzinian Avatar
+Arrg
+Barrelchest
+# The Grand Tree Black demon. Name matching would also classify ordinary Black demons.
+id:240
+Black Knight Titan
+Bouncer
+Chronozon
+Corrupt Lizardman
+Count Draynor
+Culinaromancer
+Cuthbert, Lord of Dread
+Dad
+Dagannoth Mother
+Delrith
+Dramen Tree Spirit
+Draugen
+Elvarg
+Evil Chicken
+Evil Spirit
+Fragment of Seren
+Gadderanks
+Galvek
+General Khazard
+Giant Roc
+Giant scarab
+Giant Sea Snake
+Glod
+Glough
+Ice Troll King
+Ithoi the Navigator
+Jungle demon
+Khazard Ogre
+Koschei the Deathless
+Lowerniel Drakan
+Me
+Melzar the Mad
+Moss Guardian
+Nezikchened
+Ranis Drakan
+Sand Snake
+Sea Troll Queen
+Sigmund
+Sir Leye
+Sir Mordred
+Slagilith
+Slash Bash
+Tarn Razorlor
+Tolna
+Treus Dayth
+Ulfric
+Black golem
+Grey golem
+White golem
+Dessous
+Kamil
+Fareed
+Damis
+Agrith Na-Na
+Flambeed
+Karamel
+Dessourt
+Gelatinnoth Mother
+The Inadequacy
+The Everlasting
+The Untouchable
+The Illusive
+Kruk
+Kob
+Keef
+Robert the Strong
+Elven traitor
+Essyllt
+Surok Magis
+Balance Elemental
+Prince Itzla Arkan
+Golem guard
+Arrav
+Emissary Enforcer
+Lucius
+Chimalli
+Ennius Tullus
+Augur Metzli
+Wyrd
+
+# Event bosses
+Anti-Santa
+Chocolate demon
+Colossal Chocco Chicken
+Durial321
+General Danknuck
+King Snagwort
+Santa Claus

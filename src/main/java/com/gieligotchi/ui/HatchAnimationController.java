@@ -20,6 +20,7 @@ public class HatchAnimationController
 		"crack_1", "crack_2", "crack_3", "split_open"
 	};
 	private static final int[] FRAME_MS = {600, 90, 90, 90, 600, 220, 220, 350, 500};
+	private static final int[] RIFTGLASS_IDLE_MS = {440, 180, 120, 180, 440};
 	private static final int[] CEREMONY_FRAMES = {1, 0, 3, 0, 1, 3, 5, 6, 7, 8};
 	private static final int[] CEREMONY_MS = {280, 220, 280, 220, 200, 200, 700, 850, 1_000, 1_100};
 	private static final int REVEAL_HOLD_MS = 5_000;
@@ -122,17 +123,22 @@ public class HatchAnimationController
 			return SpriteAssets.eggFrame(crackingTier, crackFrame, FRAME_NAMES[crackFrame]);
 		}
 		int frame = reducedMotion ? 0 : idleFrame(egg);
+		if (egg.getTier() == EggTier.RIFTGLASS)
+		{
+			return SpriteAssets.riftglassIdleFrame(frame, egg.getProgress());
+		}
 		return SpriteAssets.eggFrame(egg.getTier(), frame, FRAME_NAMES[frame]);
 	}
 
 	private static int idleFrame(EggState egg)
 	{
 		double speed = egg.isReady() ? 0.62d : 1d - egg.getProgress() * 0.28d;
+		int[] durations = egg.getTier() == EggTier.RIFTGLASS ? RIFTGLASS_IDLE_MS : FRAME_MS;
 		long[] ends = new long[5];
 		long total = 0;
 		for (int i = 0; i < 5; i++)
 		{
-			total += Math.max(55L, Math.round(FRAME_MS[i] * speed));
+			total += Math.max(55L, Math.round(durations[i] * speed));
 			ends[i] = total;
 		}
 		long position = System.currentTimeMillis() % total;

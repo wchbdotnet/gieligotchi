@@ -78,6 +78,27 @@ public class ProfileStore
 		writeAsync(profileKey, backupFileFor(profileKey), snapshot, "back up");
 	}
 
+	public void reset(String profileKey, ProfileState state)
+	{
+		if (profileKey == null || state == null) { return; }
+		String snapshot = gson.toJson(state);
+		executor.execute(() ->
+		{
+			try
+			{
+				synchronized (fileLock)
+				{
+					write(fileFor(profileKey), snapshot);
+					write(backupFileFor(profileKey), snapshot);
+				}
+			}
+			catch (IOException error)
+			{
+				log.debug("Unable to reset Gieligotchi profile {}", profileKey, error);
+			}
+		});
+	}
+
 	private ProfileState loadWithBackup(String profileKey, Path file) throws IOException
 	{
 		if (Files.isRegularFile(file))

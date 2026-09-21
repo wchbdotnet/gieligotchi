@@ -6,6 +6,8 @@ import com.gieligotchi.model.EggState;
 import com.gieligotchi.model.EggTier;
 import com.gieligotchi.model.HatchReceipt;
 import com.gieligotchi.model.ProfileState;
+import com.gieligotchi.model.SkillingGoal;
+import com.gieligotchi.model.SkillingActivity;
 import com.gieligotchi.model.Toy;
 import java.util.List;
 import java.util.Map;
@@ -49,40 +51,81 @@ public class GieligotchiStateService
 		});
 	}
 
-	public synchronized long observeSkill(Skill skill, int xp)
+	public synchronized long observeSkill(Skill skill, int xp, long overallXp)
 	{
 		if (state == null) { return 0; }
 		Integer previous = skill == null ? null : state.getSkillBaselines().get(skill.name());
 		long rawDelta = previous == null ? 0 : Math.max(0, xp - previous);
 		long award = SkillRewardPolicy.observe(state, skill, xp);
-		if (award > 0) { state.award(award); recordLevel99IfNeeded(); sealIfReady(); }
+		state.updateOverallXpBaseline(overallXp);
+		if (award > 0) { state.award(award); recordLevel99IfNeeded(); }
+		state.recordIncubationSkill(skill, rawDelta);
+		sealIfReady();
 		CompanionInstance companion = state.getActiveCompanion();
-		if (companion != null && rawDelta > 0) { companion.recordSkill(skill.name(), rawDelta); }
+		if (companion != null && rawDelta > 0)
+		{
+			companion.recordSkill(skill.name(), rawDelta);
+			if (companion.getMegaWish() != null) { companion.getMegaWish().record(skill, rawDelta); }
+		}
 		persist();
 		if (award > 0 || rawDelta > 0) { fireChanged(); }
 		return award;
 	}
 
-	public synchronized void synchronizeSkillBaselines(Map<Skill, Integer> currentXp)
+	public synchronized long reconcileLoginXp(Map<Skill, Integer> currentXp, long currentOverallXp)
 	{
-		if (state == null || currentXp == null) { return; }
+		if (state == null || currentXp == null) { return 0; }
+		if (state.getOverallXpBaseline() <= 0 && !currentXp.isEmpty())
+		{
+			long inferredOverallXp = 0;
+			boolean completeBaseline = true;
+			for (Skill skill : currentXp.keySet())
+			{
+				Integer savedXp = state.getSkillBaselines().get(skill.name());
+				if (savedXp == null)
+				{
+					completeBaseline = false;
+					break;
+				}
+				inferredOverallXp += savedXp;
+			}
+			if (completeBaseline) { state.updateOverallXpBaseline(inferredOverallXp); }
+		}
+		long previousOverallXp = state.getOverallXpBaseline();
+		long award = state.reconcileOfflineXp(currentOverallXp);
+		boolean validOfflineDelta = previousOverallXp > 0 && currentOverallXp >= previousOverallXp;
 		for (Map.Entry<Skill, Integer> entry : currentXp.entrySet())
 		{
 			Skill skill = entry.getKey();
 			Integer xp = entry.getValue();
 			if (skill != null && skill != Skill.OVERALL && xp != null && xp >= 0)
 			{
+				Integer prior = state.getSkillBaselines().get(skill.name());
+				if (validOfflineDelta && prior != null && xp > prior)
+				{
+					long delta = (long) xp - prior;
+					state.recordIncubationSkill(skill, delta);
+					CompanionInstance companion = state.getActiveCompanion();
+					if (companion != null && companion.getMegaWish() != null)
+					{
+						companion.getMegaWish().record(skill, delta);
+					}
+				}
 				state.getSkillBaselines().put(skill.name(), xp);
 				state.getSkillLevelBaselines().put(skill.name(), SkillRewardPolicy.levelForXp(xp));
 			}
 		}
+		if (award > 0) { recordLevel99IfNeeded(); }
+		sealIfReady();
 		persist();
+		if (award > 0 || validOfflineDelta) { fireChanged(); }
+		return award;
 	}
 
-	public synchronized long awardNpcKill(String name, int combatLevel)
+	public synchronized long awardNpcKill(int npcId, String name, int combatLevel)
 	{
 		if (state == null) { return 0; }
-		long amount = ActivityRewardPolicy.npcKillAward(name, combatLevel);
+		long amount = ActivityRewardPolicy.npcKillAward(npcId, name, combatLevel);
 		state.award(amount);
 		recordLevel99IfNeeded();
 		if (state.getActiveCompanion() != null) { state.getActiveCompanion().recordNpcKill(name, combatLevel); }
@@ -173,6 +216,7 @@ public class GieligotchiStateService
 	public synchronized boolean activateEgg(int index)
 	{
 		if (state == null || !state.activateEgg(index)) { return false; }
+		sealIfReady();
 		persist();
 		fireChanged();
 		return true;
@@ -189,6 +233,7 @@ public class GieligotchiStateService
 	public synchronized boolean buyEgg(EggTier tier)
 	{
 		if (state == null || !state.buyEgg(tier)) { return false; }
+		sealIfReady();
 		persist();
 		fireChanged();
 		return true;
@@ -268,6 +313,56 @@ public class GieligotchiStateService
 		persist(); fireChanged(); return true;
 	}
 
+	public synchronized boolean startEggSkillingGoal(Skill skill, int target)
+	{
+		if (state == null || !state.startEggSkillingGoal(skill, target)) { return false; }
+		persist(); fireChanged(); return true;
+	}
+
+	public synchronized long claimEggSkillingGoal()
+	{
+		EggState egg = state == null ? null : state.getActiveEgg();
+		if (egg == null) { return 0; }
+		SkillingGoal goal = egg.getSkillingGoal();
+		if (goal == null || !goal.isComplete()) { return 0; }
+		long reward = goal.getReward();
+		state.settleCompletedIncubationGoals();
+		sealIfReady();
+		persist(); fireChanged(); return reward;
+	}
+
+	public synchronized boolean purchaseMegaWish(Skill skill)
+	{
+		if (state == null || !state.purchaseMegaWish(skill)) { return false; }
+		persist(); fireChanged(); return true;
+	}
+
+	public synchronized boolean purchaseMegaWish(SkillingActivity activity)
+	{
+		if (state == null || !state.purchaseMegaWish(activity)) { return false; }
+		persist(); fireChanged(); return true;
+	}
+
+	public synchronized void recordSkillingActivity(SkillingActivity.Completion completion)
+	{
+		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
+		if (companion == null || companion.getMegaWish() == null || completion == null) { return; }
+		long before = companion.getMegaWish().getProgress();
+		companion.getMegaWish().record(completion);
+		if (companion.getMegaWish().getProgress() > before) { persist(); fireChanged(); }
+	}
+
+	public synchronized long claimMegaWish()
+	{
+		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
+		if (companion == null) { return 0; }
+		long reward = companion.claimMegaWish();
+		if (reward <= 0) { return 0; }
+		state.award(reward);
+		recordLevel99IfNeeded();
+		persist(); fireChanged(); return reward;
+	}
+
 	public synchronized void renameActiveCompanion(String name)
 	{
 		if (state == null || state.getActiveCompanion() == null) { return; }
@@ -294,6 +389,15 @@ public class GieligotchiStateService
 		ProfileState current = state;
 		String key = profileKey;
 		if (current != null && key != null) { store.backup(key, current); }
+	}
+
+	public synchronized boolean resetProfile()
+	{
+		if (profileKey == null) { return false; }
+		state = ProfileState.fresh(profileKey);
+		store.reset(profileKey, state);
+		fireChanged();
+		return true;
 	}
 
 	public synchronized void devAwardBondingXp(long amount)

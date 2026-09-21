@@ -22,7 +22,7 @@ public class HatchService
 
 	public HatchReceipt roll(EggState egg)
 	{
-		double[] odds = egg.getTier().getSpeciesOdds();
+		double[] odds = egg.getSpeciesOdds();
 		SpeciesRarity rarity = SpeciesRarity.values()[weightedIndex(odds)];
 		Map<SpeciesRarity, List<PetDefinition>> pools = catalogue.byRarity();
 		List<PetDefinition> pool = pools.get(rarity);
