@@ -281,7 +281,9 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	{
 		if (event == null || (event.getType() != ChatMessageType.GAMEMESSAGE
 			&& event.getType() != ChatMessageType.SPAM)) { return; }
-		ActivityRewardPolicy.Reward reward = ActivityRewardPolicy.match(Text.removeTags(event.getMessage()));
+		String message = Text.removeTags(event.getMessage());
+		stateService.recordSkillingActivity(com.gieligotchi.model.SkillingActivity.match(message));
+		ActivityRewardPolicy.Reward reward = ActivityRewardPolicy.match(message);
 		if (reward == null) { return; }
 		long now = System.currentTimeMillis();
 		Long previous = recentActivityAwards.get(reward.getId());

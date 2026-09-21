@@ -4,7 +4,8 @@ public enum EggTier
 {
 	COMMON("Common", 25_000L, 100L, new double[]{65, 25, 8, 1.8, 0.2}),
 	RARE("Rare", 100_000L, 250L, new double[]{35, 35, 20, 8, 2}),
-	MEGA_RARE("Mega-rare", 300_000L, 500L, new double[]{10, 25, 35, 22, 8});
+	MEGA_RARE("Mega-rare", 300_000L, 500L, new double[]{10, 25, 35, 22, 8}),
+	RIFTGLASS("Riftglass", 500_000L, 1_500L, new double[]{0, 0, 66, 19, 15});
 
 	private final String displayName;
 	private final long hatchXp;

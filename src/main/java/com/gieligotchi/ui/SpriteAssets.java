@@ -30,6 +30,12 @@ public final class SpriteAssets
 	public static BufferedImage egg(EggTier tier)
 	{
 		String id = tier == EggTier.MEGA_RARE ? "mega-rare" : tier.name().toLowerCase();
+		if (tier == EggTier.RIFTGLASS)
+		{
+			BufferedImage source = load("egg:" + id, "/com/gieligotchi/images/eggs/egg-" + id + ".png");
+			return CACHE.computeIfAbsent("egg:riftglass:game-size", ignored ->
+				resizeNearestOpaque(source, 96, 96));
+		}
 		return load("egg:" + id, "/com/gieligotchi/images/eggs/egg-" + id + ".png");
 	}
 
@@ -53,9 +59,71 @@ public final class SpriteAssets
 
 	public static BufferedImage eggFrame(EggTier tier, int frame, String name)
 	{
+		if (tier == EggTier.RIFTGLASS) { return riftglassFrame(frame, 6); }
 		String id = tier == EggTier.MEGA_RARE ? "mega_rare" : tier.name().toLowerCase();
+		if (frame >= 5 && frame <= 8) { return stagedCrackFrame(id, frame, 64); }
 		return load("egg-frame:" + id + ":" + frame,
 			String.format("/com/gieligotchi/images/egg-animation/%s/%02d_%s.png", id, frame, name));
+	}
+
+	private static BufferedImage stagedCrackFrame(String id, int frame, int size)
+	{
+		BufferedImage sheet = load("egg-sheet:" + id,
+			"/com/gieligotchi/images/egg-animation/" + id + "/cracking-sheet.png");
+		return CACHE.computeIfAbsent("egg-frame:custom:" + id + ":" + frame, ignored ->
+		{
+			int index = frame - 5;
+			int cellWidth = sheet.getWidth() / 2;
+			int cellHeight = sheet.getHeight() / 2;
+			BufferedImage cell = sheet.getSubimage((index % 2) * cellWidth,
+				(index / 2) * cellHeight, cellWidth, cellHeight);
+			return resizeNearestOpaque(removeFaintGenerationNoise(cell), size, size);
+		});
+	}
+
+	private static BufferedImage removeFaintGenerationNoise(BufferedImage source)
+	{
+		BufferedImage cleaned = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		for (int y = 0; y < source.getHeight(); y++)
+		{
+			for (int x = 0; x < source.getWidth(); x++)
+			{
+				int colour = source.getRGB(x, y);
+				// The generated sheets have invisible alpha specks outside the artwork. If retained,
+				// those specks double the measured bounds and make the first crack frame jump smaller.
+				if ((colour >>> 24) >= 16) { cleaned.setRGB(x, y, colour); }
+			}
+		}
+		return cleaned;
+	}
+
+	static BufferedImage riftglassIdleFrame(int frame, double progress)
+	{
+		int degrees = 2 + (int) Math.round(Math.max(0d, Math.min(1d, progress)) * 4d);
+		return riftglassFrame(frame, degrees);
+	}
+
+	private static BufferedImage riftglassFrame(int frame, int wobbleDegrees)
+	{
+		if (frame < 0 || frame > 8) { return egg(EggTier.RIFTGLASS); }
+		BufferedImage source = frame < 5 ? egg(EggTier.RIFTGLASS) : null;
+		String key = "egg-frame:riftglass:" + frame + (frame < 5 ? ":" + wobbleDegrees : "");
+		return CACHE.computeIfAbsent(key, ignored ->
+		{
+			if (frame < 5)
+			{
+				BufferedImage idle = new BufferedImage(96, 96, BufferedImage.TYPE_INT_ARGB);
+				Graphics2D graphics = idle.createGraphics();
+				// The renderer trims transparent bounds, so positional shifts disappear.
+				// Tilt the shell itself for a wobble that survives that trimming.
+				int tilt = frame == 1 ? -wobbleDegrees : frame == 3 ? wobbleDegrees : 0;
+				graphics.rotate(Math.toRadians(tilt), 48, 48);
+				drawNearestOpaque(graphics, source, 8, 8, 80, 80);
+				graphics.dispose();
+				return idle;
+			}
+			return stagedCrackFrame("riftglass", frame, 96);
+		});
 	}
 
 	public static BufferedImage pet(String speciesId, String palette)

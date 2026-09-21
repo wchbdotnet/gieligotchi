@@ -9,6 +9,27 @@ import java.util.UUID;
 
 public class CompanionInstance
 {
+	private SkillingGoal megaWish;
+	public SkillingGoal getMegaWish() { return megaWish; }
+	public boolean startMegaWish(net.runelite.api.Skill skill)
+	{
+		if (megaWish != null) { return false; }
+		megaWish = SkillingGoal.mega(skill);
+		return megaWish != null;
+	}
+	public boolean startMegaWish(SkillingActivity activity)
+	{
+		if (megaWish != null) { return false; }
+		megaWish = SkillingGoal.mega(activity);
+		return megaWish != null;
+	}
+	public long claimMegaWish()
+	{
+		if (megaWish == null || !megaWish.isComplete()) { return 0; }
+		long reward = megaWish.getReward();
+		megaWish = null;
+		return reward;
+	}
 	private static final int MAX_WISH_SKIPS = 3;
 	private static final long WISH_SKIP_XP = 5_000L;
 	private String instanceId;

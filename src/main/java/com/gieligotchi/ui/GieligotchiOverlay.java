@@ -120,6 +120,7 @@ public class GieligotchiOverlay extends Overlay
 		}
 		if (egg != null)
 		{
+			sprite = RiftglassGlow.apply(sprite, egg, config.reducedMotion());
 			int eggSize = Math.max(1, (int) Math.round(artSize * 0.60d));
 			int eggX = (visualWidth - eggSize) / 2;
 			int eggY = 5 + (artSize - eggSize) / 2;
@@ -231,12 +232,15 @@ public class GieligotchiOverlay extends Overlay
 
 		int centreX = width / 2;
 		int centreY = height / 2 + 3;
-		for (int ring = 5; ring >= 0; ring--)
+		if (reveal || activeEgg == null || activeEgg.getTier() != com.gieligotchi.model.EggTier.RIFTGLASS)
 		{
-			int radius = 40 + ring * 13 + (int) Math.round(pulse * 7);
-			int alpha = reveal ? 18 + (5 - ring) * 12 : 6 + (5 - ring) * 5;
-			graphics.setColor(new Color(glowColour.getRed(), glowColour.getGreen(), glowColour.getBlue(), Math.min(120, alpha)));
-			graphics.fillOval(centreX - radius, centreY - radius, radius * 2, radius * 2);
+			for (int ring = 5; ring >= 0; ring--)
+			{
+				int radius = 40 + ring * 13 + (int) Math.round(pulse * 7);
+				int alpha = reveal ? 18 + (5 - ring) * 12 : 6 + (5 - ring) * 5;
+				graphics.setColor(new Color(glowColour.getRed(), glowColour.getGreen(), glowColour.getBlue(), Math.min(120, alpha)));
+				graphics.fillOval(centreX - radius, centreY - radius, radius * 2, radius * 2);
+			}
 		}
 
 		BufferedImage image;
@@ -248,6 +252,7 @@ public class GieligotchiOverlay extends Overlay
 		else
 		{
 			image = activeEgg == null ? null : hatchAnimation.eggImage(activeEgg, config.reducedMotion());
+			image = RiftglassGlow.apply(image, activeEgg, config.reducedMotion());
 		}
 		int artSize = reveal ? Math.min(width - 42, 168) : Math.min(width - 42, 172);
 		if (image != null)
@@ -257,7 +262,6 @@ public class GieligotchiOverlay extends Overlay
 			else { SpriteAssets.drawNearestOpaqueShadowed(graphics, image, centreX - artSize / 2,
 				centreY - artSize / 2 - 6, artSize, artSize, 2, 3); }
 		}
-
 		graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(14, (int) Math.round(14 * textScale))));
 		graphics.setColor(new Color(0xF2C45A));
 		com.gieligotchi.model.PetDefinition pet = receipt == null ? null : catalogue.find(receipt.getSpeciesId());

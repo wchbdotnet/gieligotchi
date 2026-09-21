@@ -1,7 +1,9 @@
 package com.gieligotchi.model;
 
 import com.google.gson.annotations.SerializedName;
+import net.runelite.api.Skill;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,9 @@ public class ProfileState
 	@SerializedName(value = "gotchiPoints", alternate = {"eggshells"})
 	private long gotchiPoints;
 	private long companionshipRemainder;
+	// Unfinished incubation work and unused bonuses belong to the egg tier, not an egg instance.
+	private Map<String, List<SkillingGoal>> carriedIncubationGoals = new LinkedHashMap<>();
+	private Map<String, Long> incubationCredits = new LinkedHashMap<>();
 
 	public static ProfileState fresh(String profileKey)
 	{
@@ -62,6 +67,17 @@ public class ProfileState
 	public Map<String, Integer> getSkillLevelBaselines() { return skillLevelBaselines; }
 	public Map<String, Integer> getSkillRemainders() { return skillRemainders; }
 	public long getOverallXpBaseline() { return overallXpBaseline; }
+	public Map<String, List<SkillingGoal>> getCarriedIncubationGoals() { return carriedIncubationGoals; }
+	public long getIncubationCredit(EggTier tier)
+	{
+		return tier == null || incubationCredits == null ? 0 : incubationCredits.getOrDefault(tier.name(), 0L);
+	}
+	public SkillingGoal getCarriedIncubationGoal(EggTier tier)
+	{
+		if (tier == null || carriedIncubationGoals == null) { return null; }
+		List<SkillingGoal> goals = carriedIncubationGoals.get(tier.name());
+		return goals == null || goals.isEmpty() ? null : goals.get(0);
+	}
 
 	public void repair()
 	{
@@ -79,6 +95,8 @@ public class ProfileState
 		if (skillBaselines == null) { skillBaselines = new LinkedHashMap<>(); }
 		if (skillLevelBaselines == null) { skillLevelBaselines = new LinkedHashMap<>(); }
 		if (skillRemainders == null) { skillRemainders = new LinkedHashMap<>(); }
+		if (carriedIncubationGoals == null) { carriedIncubationGoals = new LinkedHashMap<>(); }
+		if (incubationCredits == null) { incubationCredits = new LinkedHashMap<>(); }
 		if (activeEgg != null)
 		{
 			if (activeEgg.isStarter()) { activeEgg.retargetPreservingXp(EggState.STARTER_HATCH_XP); }
@@ -92,6 +110,107 @@ public class ProfileState
 			if (egg.isStarter()) { egg.retargetPreservingXp(EggState.STARTER_HATCH_XP); }
 			else { egg.rebalanceTarget(egg.getTier().getHatchXp()); }
 		}
+		settleCompletedIncubationGoals();
+		applyIncubationCreditToActiveEgg();
+	}
+
+	public boolean startEggSkillingGoal(Skill skill, int target)
+	{
+		return activeEgg != null && getCarriedIncubationGoal(activeEgg.getTier()) == null
+			&& activeEgg.startSkillingGoal(skill, target);
+	}
+
+	/** Count a skill delta toward just one goal, never several simultaneous egg tiers. */
+	public void recordIncubationSkill(Skill skill, long rawXp)
+	{
+		if (rawXp <= 0 || !SkillingGoal.eligible(skill)) { return; }
+		settleCompletedIncubationGoals();
+		long remaining = rawXp;
+		if (activeEgg != null && activeEgg.getSkillingGoal() != null
+			&& skill.name().equals(activeEgg.getSkillingGoal().getSkill()))
+		{
+			remaining = activeEgg.getSkillingGoal().recordAndReturnRemainder(skill, remaining);
+			settleCompletedIncubationGoals();
+		}
+		while (remaining > 0)
+		{
+			SkillingGoal next = firstCarriedIncubationGoalForSkill(skill);
+			if (next == null) { break; }
+			remaining = next.recordAndReturnRemainder(skill, remaining);
+			settleCompletedIncubationGoals();
+		}
+	}
+
+	private SkillingGoal firstCarriedIncubationGoalForSkill(Skill skill)
+	{
+		for (List<SkillingGoal> goals : carriedIncubationGoals.values())
+		{
+			if (goals == null) { continue; }
+			for (SkillingGoal goal : goals)
+			{
+				if (goal != null && !goal.isComplete() && skill.name().equals(goal.getSkill())) { return goal; }
+			}
+		}
+		return null;
+	}
+
+	public void settleCompletedIncubationGoals()
+	{
+		if (carriedIncubationGoals == null) { carriedIncubationGoals = new LinkedHashMap<>(); }
+		if (incubationCredits == null) { incubationCredits = new LinkedHashMap<>(); }
+		if (activeEgg != null && activeEgg.getSkillingGoal() != null
+			&& activeEgg.getSkillingGoal().isComplete())
+		{
+			creditIncubationBonus(activeEgg.getTier(), activeEgg.claimSkillingGoal());
+		}
+		for (EggState egg : stashedEggs)
+		{
+			if (egg != null && egg.getSkillingGoal() != null && egg.getSkillingGoal().isComplete())
+			{
+				creditIncubationBonus(egg.getTier(), egg.claimSkillingGoal());
+			}
+		}
+		Iterator<Map.Entry<String, List<SkillingGoal>>> entries = carriedIncubationGoals.entrySet().iterator();
+		while (entries.hasNext())
+		{
+			Map.Entry<String, List<SkillingGoal>> entry = entries.next();
+			EggTier tier;
+			try { tier = EggTier.valueOf(entry.getKey()); }
+			catch (IllegalArgumentException error) { entries.remove(); continue; }
+			List<SkillingGoal> goals = entry.getValue();
+			if (goals == null) { entries.remove(); continue; }
+			Iterator<SkillingGoal> pending = goals.iterator();
+			while (pending.hasNext())
+			{
+				SkillingGoal goal = pending.next();
+				if (goal == null) { pending.remove(); }
+				else if (goal.isComplete())
+				{
+					creditIncubationBonus(tier, goal.getReward());
+					pending.remove();
+				}
+			}
+			if (goals.isEmpty()) { entries.remove(); }
+		}
+	}
+
+	private void creditIncubationBonus(EggTier tier, long amount)
+	{
+		if (tier == null || amount <= 0) { return; }
+		incubationCredits.merge(tier.name(), amount, Long::sum);
+		applyIncubationCreditToActiveEgg();
+	}
+
+	public void applyIncubationCreditToActiveEgg()
+	{
+		if (activeEgg == null || activeEgg.isReady() || incubationCredits == null) { return; }
+		String tier = activeEgg.getTier().name();
+		long credit = incubationCredits.getOrDefault(tier, 0L);
+		if (credit <= 0) { return; }
+		long applied = Math.min(credit, activeEgg.getTargetXp() - activeEgg.getHatchXp());
+		activeEgg.addXp(applied);
+		if (credit == applied) { incubationCredits.remove(tier); }
+		else { incubationCredits.put(tier, credit - applied); }
 	}
 
 	public long reconcileOfflineXp(long currentOverallXp)
@@ -155,6 +274,12 @@ public class ProfileState
 	{
 		if (activeEgg == null || !activeEgg.isReady() || activeEgg.getSealedResult() == null) { return null; }
 		HatchReceipt receipt = activeEgg.getSealedResult();
+		SkillingGoal unfinished = activeEgg.detachSkillingGoal();
+		if (unfinished != null)
+		{
+			if (unfinished.isComplete()) { creditIncubationBonus(activeEgg.getTier(), unfinished.getReward()); }
+			else { carriedIncubationGoals.computeIfAbsent(activeEgg.getTier().name(), key -> new ArrayList<>()).add(unfinished); }
+		}
 		receipt.markRevealed();
 		CompanionInstance companion = CompanionInstance.from(receipt);
 		hatchHistory.add(receipt);
@@ -187,6 +312,7 @@ public class ProfileState
 	{
 		if (activeEgg != null || activeCompanion != null || index < 0 || index >= stashedEggs.size()) { return false; }
 		activeEgg = stashedEggs.remove(index);
+		applyIncubationCreditToActiveEgg();
 		return true;
 	}
 
@@ -202,12 +328,29 @@ public class ProfileState
 		if (tier == null || activeEgg != null || activeCompanion != null || gotchiPoints < tier.getPrice()) { return false; }
 		gotchiPoints -= tier.getPrice();
 		activeEgg = EggState.purchased(tier);
+		applyIncubationCreditToActiveEgg();
 		return true;
 	}
 
 	public void grantGotchiPoints(long amount)
 	{
 		if (amount > 0) { gotchiPoints += amount; }
+	}
+
+	public boolean purchaseMegaWish(net.runelite.api.Skill skill)
+	{
+		if (activeCompanion == null || gotchiPoints < SkillingGoal.MEGA_PRICE
+			|| !activeCompanion.startMegaWish(skill)) { return false; }
+		gotchiPoints -= SkillingGoal.MEGA_PRICE;
+		return true;
+	}
+
+	public boolean purchaseMegaWish(SkillingActivity activity)
+	{
+		if (activeCompanion == null || gotchiPoints < SkillingGoal.MEGA_PRICE
+			|| !activeCompanion.startMegaWish(activity)) { return false; }
+		gotchiPoints -= SkillingGoal.MEGA_PRICE;
+		return true;
 	}
 
 	public boolean ownsBackdrop(Backdrop backdrop)
