@@ -10,12 +10,38 @@ import com.gieligotchi.service.PetCatalogue;
 import com.gieligotchi.ui.SpriteAssets;
 import com.google.gson.Gson;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import javax.imageio.ImageIO;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 public class RiftglassEggTest
 {
+	@Test
+	public void newEggArtworkStaysWithinDecodedImageBudget() throws IOException
+	{
+		String[] assets = {
+			"eggs/egg-riftglass.png",
+			"egg-animation/common/cracking-sheet.png",
+			"egg-animation/rare/cracking-sheet.png",
+			"egg-animation/mega_rare/cracking-sheet.png",
+			"egg-animation/riftglass/cracking-sheet.png"
+		};
+		for (String asset : assets)
+		{
+			String path = "/com/gieligotchi/images/" + asset;
+			try (InputStream stream = RiftglassEggTest.class.getResourceAsStream(path))
+			{
+				assertNotNull(path, stream);
+				BufferedImage image = ImageIO.read(stream);
+				assertNotNull(path, image);
+				assertTrue(path, (long) image.getWidth() * image.getHeight() * 4L <= 1_048_576L);
+			}
+		}
+	}
+
 	@Test
 	public void purchaseSetsPriceThresholdAndPermanentOdds()
 	{
