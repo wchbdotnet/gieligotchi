@@ -83,6 +83,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	private String loadedProfileKey;
 	private boolean welcomeOpening;
 	private boolean skillBaselinesSynchronized;
+	private long saveReplacementVersion;
 	private int lastRegionId = -1;
 	private int lastSlayerCount = -1;
 	private final Map<Integer, Integer> engagedNpcTicks = new HashMap<>();
@@ -166,7 +167,9 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Override
 	protected void shutDown()
 	{
+		stateService.syncNow(null);
 		stateService.backup();
+		stateService.unload();
 		mouseManager.unregisterMouseListener(this);
 		stateService.removeListener(profileListener);
 		overlayManager.remove(overlay);
@@ -181,11 +184,24 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	}
 
 	@Subscribe
+	public void onConfigSync(net.runelite.client.events.ConfigSync event)
+	{
+		stateService.syncNow(null);
+	}
+
+	@Subscribe
 	public void onGameTick(GameTick event)
 	{
 		// LOGGED_IN can arrive before the local player/account hash is ready.
 		// Retry cheaply until one profile has actually been selected.
 		if (loadedProfileKey == null) { loadCurrentProfile(); }
+		if (loadedProfileKey != null && client.getTickCount() % 50 == 0)
+		{ stateService.syncNow(configManager.getRSProfileKey()); }
+		if (saveReplacementVersion != stateService.getReplacementVersion())
+		{
+			saveReplacementVersion = stateService.getReplacementVersion();
+			skillBaselinesSynchronized = false;
+		}
 		if (!skillBaselinesSynchronized && stateService.getState() != null)
 		{
 			Map<Skill, Integer> currentXp = new EnumMap<>(Skill.class);
@@ -225,7 +241,9 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		if (event.getGameState() == GameState.LOGGED_IN) { loadCurrentProfile(); }
 		else if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
+			stateService.syncNow(null);
 			stateService.backup();
+			stateService.unload();
 			loadedProfileKey = null;
 			welcomeOpening = false;
 			skillBaselinesSynchronized = false;
@@ -354,6 +372,10 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	{
 		if (client.getGameState() != GameState.LOGGED_IN || client.getLocalPlayer() == null) { return; }
 		long accountHash = client.getAccountHash();
+		// Wait for the stable character namespace before loading or syncing any save.
+		if (accountHash == -1L || accountHash == 0L || configManager.getRSProfileKey() == null) { return; }
+		if (configManager.getRSProfiles().stream().noneMatch(profile -> profile.getAccountHash() == accountHash
+			&& profile.getKey().equals(configManager.getRSProfileKey()))) { return; }
 		String name = client.getLocalPlayer().getName();
 		String key = accountHash != -1L && accountHash != 0L
 			? "account-" + Long.toUnsignedString(accountHash)
@@ -362,7 +384,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		{
 			loadedProfileKey = key;
 			skillBaselinesSynchronized = false;
-			stateService.load(key);
+			stateService.load(key, configManager.getRSProfileKey());
 		}
 	}
 

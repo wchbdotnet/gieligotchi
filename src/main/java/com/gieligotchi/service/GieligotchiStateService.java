@@ -27,6 +27,14 @@ public class GieligotchiStateService
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 	private volatile ProfileState state;
 	private volatile String profileKey;
+	@Inject private ProfileSync profileSync;
+	private String rsProfile;
+	private String lastSnapshot;
+	private boolean newProfile;
+	private long loadGeneration;
+	private volatile long replacementVersion;
+	private volatile String syncStatus = "Log into a character to manage saves.";
+	private List<ProfileState> conflicts = new java.util.ArrayList<>();
 
 	@Inject
 	public GieligotchiStateService(ProfileStore store, HatchService hatchService)
@@ -35,20 +43,192 @@ public class GieligotchiStateService
 		this.hatchService = hatchService;
 	}
 
+	GieligotchiStateService(ProfileStore store, HatchService hatchService, ProfileSync profileSync)
+	{
+		this(store, hatchService);
+		this.profileSync = profileSync;
+	}
+
 	public void load(String key)
 	{
+		load(key, null);
+	}
+
+	public synchronized void load(String key, String runeScapeProfile)
+	{
+		final long generation = ++loadGeneration;
+		rsProfile = runeScapeProfile;
 		profileKey = key;
 		state = null;
+		lastSnapshot = null;
+		conflicts.clear();
+		newProfile = !store.exists(key);
 		fireChanged();
 		store.load(key, loaded ->
 		{
-			if (!key.equals(profileKey)) { return; }
-			state = loaded;
-			recordLevel99IfNeeded();
-			sealIfReady();
-			persist();
-			fireChanged();
+			synchronized (this)
+			{
+				if (generation != loadGeneration || !key.equals(profileKey)) { return; }
+				state = loaded;
+				lastSnapshot = SaveCodec.json(state);
+				sync(false);
+				newProfile = false;
+				recordLevel99IfNeeded();
+				sealIfReady();
+				persist();
+				fireChanged();
+			}
 		});
+	}
+
+	public String getSyncStatus() { return syncStatus; }
+	public synchronized void unload()
+	{
+		loadGeneration++;
+		state = null;
+		profileKey = null;
+		rsProfile = null;
+		lastSnapshot = null;
+		conflicts.clear();
+		syncStatus = "Log into a character to manage saves.";
+		fireChanged();
+	}
+	public long getReplacementVersion() { return replacementVersion; }
+	public synchronized boolean hasSaveConflict() { return !conflicts.isEmpty(); }
+	public java.nio.file.Path getSaveDirectory() { return store.getDirectory(); }
+	public synchronized String exportSave()
+	{
+		if (state == null) { throw new IllegalStateException("Log into a character first."); }
+		return SaveCodec.json(state);
+	}
+
+	public synchronized void importSave(String json, String expectedCharacter) throws java.io.IOException
+	{
+		if (state == null || !state.getProfileKey().equals(expectedCharacter))
+		{ throw new java.io.IOException("Character changed. Please try again."); }
+		ProfileState imported = SaveCodec.read(json, profileKey);
+		store.archive(state);
+		store.archive(imported);
+		SaveCodec.acknowledge(imported, state);
+		state = imported;
+		lastSnapshot = null;
+		replacementVersion++;
+		persist();
+		sealIfReady();
+		persist();
+		syncStatus = "Save imported. Previous progress kept in recovery files.";
+		fireChanged();
+	}
+
+	public synchronized List<String> getSaveChoices()
+	{
+		List<String> choices = new java.util.ArrayList<>();
+		choices.add("Keep this device · " + saveDescription(state));
+		for (int i = 0; i < conflicts.size(); i++)
+		{ choices.add("Other save " + (i + 1) + " · " + saveDescription(conflicts.get(i))); }
+		return choices;
+	}
+
+	private String saveDescription(ProfileState saved)
+	{
+		if (saved == null) { return "not loaded"; }
+		String journey = "empty slot";
+		if (saved.getActiveEgg() != null)
+		{
+			EggState egg = saved.getActiveEgg();
+			journey = egg.getTier().getDisplayName() + " egg " + egg.getHatchXp() + "/" + egg.getTargetXp() + " XP";
+		}
+		else if (saved.getActiveCompanion() != null)
+		{
+			CompanionInstance companion = saved.getActiveCompanion();
+			journey = companion.getDisplayName(companion.getSpeciesId()) + ", " + companion.getLifetimeXp() + " XP";
+		}
+		return saved.getGotchiPoints() + " points, " + saved.getHatchHistory().size() + " hatches, "
+			+ journey;
+	}
+
+	public synchronized String getConflictToken()
+	{
+		StringBuilder token = new StringBuilder();
+		for (ProfileState alternative : conflicts) { token.append(SaveCodec.json(alternative)); }
+		return token.toString();
+	}
+
+	public synchronized void resolveSave(int choice, String expectedCharacter, String token) throws java.io.IOException
+	{
+		if (state == null || !profileKey.equals(expectedCharacter) || conflicts.isEmpty()
+			|| !getConflictToken().equals(token) || choice < 0 || choice > conflicts.size())
+		{ throw new java.io.IOException("Save choices changed. Open them again."); }
+		ProfileState selected = SaveCodec.read(SaveCodec.json(choice == 0 ? state : conflicts.get(choice - 1)), profileKey);
+		store.archive(state);
+		for (ProfileState alternative : conflicts) { store.archive(alternative); }
+		SaveCodec.acknowledge(selected, state);
+		for (ProfileState alternative : conflicts) { SaveCodec.acknowledge(selected, alternative); }
+		state = selected;
+		conflicts.clear();
+		lastSnapshot = null;
+		replacementVersion++;
+		persist();
+		sync(true);
+		fireChanged();
+	}
+
+	public synchronized void syncNow(String runeScapeProfile)
+	{
+		if (runeScapeProfile != null) { rsProfile = runeScapeProfile; }
+		sync(true);
+	}
+
+	private void sync(boolean publish)
+	{
+		if (state == null || profileSync == null) { return; }
+		String oldStatus = syncStatus;
+		try
+		{
+			String unavailable = profileSync.unavailable(rsProfile);
+			if (unavailable != null) { syncStatus = unavailable; return; }
+			List<ProfileState> remote = profileSync.read(rsProfile, profileKey);
+			List<ProfileState> candidates = new java.util.ArrayList<>();
+			if (!newProfile || remote.isEmpty()) { candidates.add(state); }
+			candidates.addAll(remote);
+			List<ProfileState> latest = new java.util.ArrayList<>();
+			for (ProfileState candidate : candidates)
+			{
+				boolean superseded = false;
+				for (ProfileState other : candidates)
+				{
+					// An unversioned existing local save predates sync: require an explicit choice.
+					if (!candidate.getSaveVersions().isEmpty() && SaveCodec.dominates(other, candidate)) { superseded = true; break; }
+				}
+				if (!superseded && latest.stream().noneMatch(existing -> SaveCodec.json(existing).equals(SaveCodec.json(candidate))))
+				{ latest.add(candidate); }
+			}
+			conflicts.clear();
+			if (latest.size() > 1)
+			{
+				for (ProfileState alternative : latest)
+				{ if (!SaveCodec.json(alternative).equals(SaveCodec.json(state))) { conflicts.add(alternative); } }
+				syncStatus = "Two devices have different progress. Open Save & sync to choose. Neither is overwritten.";
+				return;
+			}
+			if (!latest.isEmpty() && latest.get(0) != state && !SaveCodec.json(latest.get(0)).equals(SaveCodec.json(state)))
+			{
+				store.archive(state);
+				state = latest.get(0);
+				lastSnapshot = SaveCodec.json(state);
+				replacementVersion++;
+				store.save(profileKey, state);
+				fireChanged();
+			}
+			if (publish)
+			{
+				persist();
+				profileSync.publish(rsProfile, store.deviceId(), state);
+			}
+			syncStatus = "Save queued for RuneLite sync. Close this client before switching devices; keep an export backup.";
+		}
+		catch (Exception error) { syncStatus = "Sync paused: " + error.getMessage() + " Local progress is safe."; }
+		finally { if (!syncStatus.equals(oldStatus)) { fireChanged(); } }
 	}
 
 	public synchronized long observeSkill(Skill skill, int xp, long overallXp)
@@ -394,7 +574,10 @@ public class GieligotchiStateService
 	public synchronized boolean resetProfile()
 	{
 		if (profileKey == null) { return false; }
-		state = ProfileState.fresh(profileKey);
+		ProfileState fresh = ProfileState.fresh(profileKey);
+		if (state != null) { SaveCodec.acknowledge(fresh, state); }
+		state = fresh;
+		persist();
 		store.reset(profileKey, state);
 		fireChanged();
 		return true;
@@ -473,7 +656,17 @@ public class GieligotchiStateService
 	{
 		ProfileState current = state;
 		String key = profileKey;
-		if (current != null && key != null) { store.save(key, current); }
+		if (current != null && key != null)
+		{
+			String snapshot = SaveCodec.json(current);
+			if (!snapshot.equals(lastSnapshot) || current.getSaveVersions().isEmpty())
+			{
+				try { current.getSaveVersions().merge(store.deviceId(), 1L, Long::sum); }
+				catch (java.io.IOException error) { syncStatus = "Local save only: cannot create device identity."; }
+				lastSnapshot = SaveCodec.json(current);
+				store.save(key, current);
+			}
+		}
 	}
 
 	private void fireChanged()

@@ -440,6 +440,12 @@ public class GieligotchiPanel extends PluginPanel
 		hint.setPreferredSize(new Dimension(190, 20));
 		hint.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 		home.add(hint);
+		if (stateService.hasSaveConflict())
+		{
+			JButton conflict = styledButton("Resolve save conflict", 12f);
+			conflict.addActionListener(event -> showSaveManager());
+			home.add(conflict);
+		}
 		if (DEV_TOOLS_ENABLED)
 		{
 			home.add(Box.createVerticalStrut(10));
@@ -2011,6 +2017,8 @@ public class GieligotchiPanel extends PluginPanel
 		finishRebuild(rarities);
 	}
 
+	private void showSaveManager() { SaveManagerDialog.show(this, stateService); }
+
 	private void rebuildGuide()
 	{
 		guide.removeAll();
@@ -2018,7 +2026,15 @@ public class GieligotchiPanel extends PluginPanel
 		guide.setBorder(new EmptyBorder(12, PAGE_GUTTER, 14, PAGE_GUTTER));
 		pageHeading(guide, "HOW TO PLAY",
 			"Raise companions through ordinary Old School play. Progress naturally, explore at your own pace and discover the rarer details along the way.");
+		JButton saves = styledButton("Save & sync", 14f);
+		saves.setAlignmentX(LEFT_ALIGNMENT);
+		saves.addActionListener(event -> showSaveManager());
+		guide.add(saves);
+		guide.add(Box.createVerticalStrut(8));
 		String[][] entries = {
+			{"DEVICE SYNC", "Sign into the same RuneLite account on both devices and play the same OSRS character. Saves are queued automatically. Close the first client before opening the other. RuneLite uploads are not instant."},
+			{"SAVE & SYNC", "Use the button above to export your whole collection or import it on another device. Each character has its own save. Importing replaces progress, so export both devices first."},
+			{"SAFE RECOVERY", "Independent device progress needs a choice, not an automatic overwrite. Save & sync keeps recovery copies before replacement. Large saves use Export/Import; no history is trimmed."},
 			{"1 · START WITH AN EGG", "Choose an egg from the shop and incubate it from the Stash Tray. Your active egg is the one that receives Bonding XP."},
 			{"RIFTGLASS EGGS", "Riftglass eggs cost 1,500 Gotchi Points and require 500,000 Bonding XP. They hatch only Rare-or-better species, with a unique pearl shimmer that hints at the egg's attunement without revealing its exact odds."},
 			{"2 · PLAY OLD SCHOOL", "Train skills, fight NPCs, complete quests and take on larger challenges. Every style of play can help your active egg or companion grow."},
@@ -2048,7 +2064,7 @@ public class GieligotchiPanel extends PluginPanel
 			{"COSMETICS, NOT POWER", "Colours, toys, backdrops, affection and personality personalise your companion. They do not change Old School combat or skilling."},
 			{"STASH & COLLECTION", "Stash space is limited and paginated. Collection entries and hatch records remain permanent discoveries even if a companion later leaves."},
 			{"SELLING IS FINAL", "Selling returns Gotchi Points but permanently removes that companion. The interface asks for confirmation; this cannot be undone."},
-			{"LOCAL PROFILE", "Progress is stored for the active RuneScape profile on this client. Back up RuneLite settings before moving machines or clearing local data."},
+			{"CHARACTER SAVES", "Progress belongs to each OSRS character. Sign into RuneLite for automatic sync, or use Guide > Save & sync to transfer a full save. Local files and recovery backups remain on this device."},
 			{"PLAY YOUR WAY", "There is no required training method. Early journeys should move steadily, while prestigious eggs and max-level companions are longer-term goals."},
 			{"KEEP SOME MYSTERY", "Exact reward formulas and the rarest combinations are not listed. The Rarities page offers broad guidance without spoiling every outcome."}
 		};
@@ -2064,8 +2080,7 @@ public class GieligotchiPanel extends PluginPanel
 		title.setAlignmentX(LEFT_ALIGNMENT);
 		page.add(title);
 		page.add(Box.createVerticalStrut(4));
-		JTextArea intro = paragraph(introCopy, 14f);
-		intro.setMaximumSize(new Dimension(Integer.MAX_VALUE, 74));
+		JTextArea intro = scalableParagraph(introCopy, 14f, 190, 74);
 		page.add(intro);
 		page.add(Box.createVerticalStrut(9));
 	}
@@ -2119,13 +2134,12 @@ public class GieligotchiPanel extends PluginPanel
 		JLabel title = new JLabel(heading);
 		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(14f));
 		title.setForeground(new Color(0xD7B867));
-		JTextArea body = paragraph(copy, 13f);
-		body.setMaximumSize(new Dimension(Integer.MAX_VALUE, 88));
+		JTextArea body = scalableParagraph(copy, 13f, 180, 70);
 		card.add(title);
 		card.add(Box.createVerticalStrut(3));
 		card.add(body);
 		card.setAlignmentX(LEFT_ALIGNMENT);
-		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 118));
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, body.getPreferredSize().height + 34));
 		return card;
 	}
 
@@ -2195,6 +2209,20 @@ public class GieligotchiPanel extends PluginPanel
 		text.setBorder(BorderFactory.createEmptyBorder());
 		text.setAlignmentX(LEFT_ALIGNMENT);
 		text.setMinimumSize(new Dimension(0, 0));
+		return text;
+	}
+
+	private JTextArea scalableParagraph(String copy, float size, int width, int minimumHeight)
+	{
+		JTextArea text = paragraph(copy, size);
+		Font base = text.getFont();
+		text.setFont(base.deriveFont(size * textScale()));
+		text.setSize(new Dimension(width, Short.MAX_VALUE));
+		int height = Math.max(minimumHeight, (int) Math.ceil(text.getPreferredSize().height / textScale()) + 4);
+		text.setFont(base);
+		text.setMinimumSize(new Dimension(0, height));
+		text.setPreferredSize(new Dimension(width, height));
+		text.setMaximumSize(new Dimension(Integer.MAX_VALUE, height));
 		return text;
 	}
 
