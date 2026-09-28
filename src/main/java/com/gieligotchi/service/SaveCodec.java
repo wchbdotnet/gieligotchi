@@ -11,24 +11,28 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /** Versioned, bounded transfer format; the entire collection travels together. */
+@Singleton
 public final class SaveCodec
 {
 	public static final int MAX_FILE_BYTES = 8 * 1024 * 1024;
 	// Deliberately conservative plugin budget, not a claim about the server's quota.
 	public static final int MAX_SYNC_CHARS = 16 * 1024;
-	private static final Gson GSON = new Gson();
-	private SaveCodec() { }
+	private final Gson gson;
+	@Inject
+	public SaveCodec(Gson gson) { this.gson = gson; }
 
-	public static String json(ProfileState state) { return GSON.toJson(state); }
+	public String json(ProfileState state) { return gson.toJson(state); }
 
-	public static ProfileState read(String text, String character)
+	public ProfileState read(String text, String character)
 	{
 		if (text == null || text.length() > MAX_FILE_BYTES) { throw new IllegalArgumentException("Save is too large."); }
 		try
 		{
-			JsonObject object = GSON.fromJson(text, JsonObject.class);
+			JsonObject object = gson.fromJson(text, JsonObject.class);
 			if (object == null || !object.has("schemaVersion") || object.get("schemaVersion").getAsInt() != 1
 				|| !object.has("profileKey") || !character.equals(object.get("profileKey").getAsString()))
 			{
@@ -38,7 +42,7 @@ public final class SaveCodec
 			{
 				throw new IllegalArgumentException("This is not a complete Gieligotchi save.");
 			}
-			ProfileState state = GSON.fromJson(object, ProfileState.class);
+			ProfileState state = gson.fromJson(object, ProfileState.class);
 			if (state.getSaveVersions().size() > 256) { throw new IllegalArgumentException("Invalid save history."); }
 			for (Map.Entry<String, Long> entry : state.getSaveVersions().entrySet())
 			{
@@ -54,7 +58,7 @@ public final class SaveCodec
 		}
 	}
 
-	public static String pack(ProfileState state) throws IOException
+	public String pack(ProfileState state) throws IOException
 	{
 		byte[] json = json(state).getBytes(StandardCharsets.UTF_8);
 		if (json.length > MAX_FILE_BYTES) { throw new IOException("Save is too large for sync; use Export."); }
@@ -65,7 +69,7 @@ public final class SaveCodec
 		return packed;
 	}
 
-	public static ProfileState unpack(String packed, String character) throws IOException
+	public ProfileState unpack(String packed, String character) throws IOException
 	{
 		if (packed == null || !packed.startsWith("v1:") || packed.length() > MAX_SYNC_CHARS)
 		{ throw new IOException("Unsupported synced save."); }

@@ -3,6 +3,7 @@ package com.gieligotchi.ui;
 import com.gieligotchi.GieligotchiConfig;
 import com.gieligotchi.service.GieligotchiStateService;
 import com.gieligotchi.service.PetCatalogue;
+import com.gieligotchi.service.SaveCodec;
 import com.google.gson.Gson;
 import java.awt.Component;
 import java.awt.Container;
@@ -27,7 +28,7 @@ public class GuideLayoutTest
 			SwingUtilities.invokeAndWait(() -> {
 				try
 				{
-					GieligotchiStateService state = new GieligotchiStateService(null, null);
+					GieligotchiStateService state = new GieligotchiStateService(null, null, new SaveCodec(new Gson()));
 					GieligotchiPanel panel = new GieligotchiPanel(state, new PetCatalogue(new Gson()),
 						new GieligotchiConfig() { @Override public int textScale() { return scale; } },
 						new HatchAnimationController(state), new CompanionEffectController());
