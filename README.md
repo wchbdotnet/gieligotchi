@@ -1,151 +1,78 @@
+# Gieligotchi
+
+[![OSRS artists wanted](readme-assets/artist-banner.png)](https://discord.gg/dP9WN62QQE)
+
 <p align="center">
-  <img src="icon.png" width="96" height="96" alt="Gieligotchi icon">
+  <strong>Are you a pixel artist, sprite artist or animator?</strong><br>
+  Help us replace every AI-assisted asset with commissioned work from the OSRS art community.<br><br>
+  <a href="https://discord.gg/dP9WN62QQE"><strong>Talk to us on Discord →</strong></a>
 </p>
 
-<h1 align="center">Gieligotchi</h1>
+---
 
 <p align="center">
-  <strong>A tiny life in Gielinor.</strong><br>
+  <img width="112" src="src/main/resources/com/gieligotchi/images/eggs/egg-riftglass.png" alt="Riftglass egg">
+</p>
+
+<h2 align="center">A tiny life in Gielinor.</h2>
+
+<p align="center">
+  Your adventures. Their little world.<br>
   Hatch, raise and remember a companion while you play Old School RuneScape.
 </p>
 
 <p align="center">
-  <a href="https://runelite.net/plugin-hub/show/gieligotchi">Install from RuneLite</a>
-  &nbsp;&bull;&nbsp;
-  <a href="https://discord.gg/dP9WN62QQE">Join the Discord</a>
-  &nbsp;&bull;&nbsp;
-  <a href="#how-it-works">How it works</a>
-  &nbsp;&bull;&nbsp;
-  <a href="#privacy-and-fair-play">Privacy &amp; fair play</a>
+  <a href="https://gieligotchi.com/"><strong>Website</strong></a> ·
+  <a href="https://discord.gg/dP9WN62QQE"><strong>Discord</strong></a> ·
+  <a href="#private-fair-and-portable"><strong>Privacy &amp; fair play</strong></a>
 </p>
 
 <p align="center">
-  <img src="src/main/resources/com/gieligotchi/images/pets/little_nightmare/base.png" width="88" alt="Little Nightmare companion">
-  <img src="src/main/resources/com/gieligotchi/images/pets/olmlet/base.png" width="88" alt="Olmlet companion">
-  <img src="src/main/resources/com/gieligotchi/images/pets/lil_zik/obsidian.png" width="88" alt="Obsidian Lil' Zik companion">
-  <img src="src/main/resources/com/gieligotchi/images/pets/pet_kreearra/rose.png" width="88" alt="Rose Pet Kree'arra companion">
-  <img src="src/main/resources/com/gieligotchi/images/pets/nid/void.png" width="88" alt="Void Nid companion">
+  <img width="78" src="src/main/resources/com/gieligotchi/images/pets/little_nightmare/base.png" alt="Little Nightmare">
+  <img width="78" src="src/main/resources/com/gieligotchi/images/pets/olmlet/base.png" alt="Olmlet">
+  <img width="78" src="src/main/resources/com/gieligotchi/images/pets/lil_zik/obsidian.png" alt="Lil' Zik">
+  <img width="78" src="src/main/resources/com/gieligotchi/images/pets/pet_kreearra/rose.png" alt="Pet Kree'arra">
+  <img width="78" src="src/main/resources/com/gieligotchi/images/pets/nid/void.png" alt="Nid">
 </p>
 
-## What is Gieligotchi?
+## Your usual adventures. A little more meaning.
 
-Gieligotchi is a cosy, cosmetic companion game for RuneLite. You begin with an
-egg, choose a companion to raise and let your normal adventures in Gielinor
-shape the life you build together.
+A Tamagotchi-style companion without the chores. Nothing decays when you step away. Just pick up where you left off.
 
-Your companion grows as you play. It develops a personality, makes wishes,
-discovers favourite toys and keeps a small memory book of your time together.
-There are no daily streaks, no punishment for taking a break and no companion
-death. Gieligotchi is designed to add a little warmth to RuneScape without
-turning it into another list of chores.
+| 1. Choose an egg | 2. Play OSRS | 3. Meet your companion | 4. Make memories |
+|---|---|---|---|
+| Begin with a little mystery. | Skill, fight and finish quests to earn Bonding XP. | Hatch a species, colour and personality. | Build affection, grant wishes and grow your collection. |
 
-## How it works
+### A companion with a life of its own
 
-1. **Choose an egg.** Each new journey begins with a mystery companion.
-2. **Play RuneScape normally.** Skilling, combat, quests and recognised
-   activities help your egg and companion grow.
-3. **Welcome your hatchling.** Discover its species, colour and personality.
-4. **Make it yours.** Build affection, grant wishes, play with familiar
-   Gielinor toys and collect backdrops for its home.
-5. **Keep the memories.** Raise companions over time and build a collection of
-   the little lives that travelled with you.
+- 71 species, 11 colours and 781 possible combinations
+- Individual personalities, wishes and affection
+- A persistent memory book and history of every companion raised
+- Animated egg hatching, skilling incubation goals and cosmetic rewards
+- Compact sidebar, movable overlay and optional character-save sync
 
-Gieligotchi keeps some discoveries behind the journey itself. The guide explains
-what to expect without turning every hatch, wish or reward into a spreadsheet.
+## Familiar places. Smaller adventures.
 
-## A companion with a life of its own
+Collect interpretations of recognisable Gielinor locations and give your active companion a little place to call home.
 
-- **71 companion species** and **781 collectible colour variants**
-- Individual personalities, wishes, favourite toys and affection
-- A persistent memory book for meaningful moments
-- Animated hatching and a history of every companion you have raised
-- A special red partyhat for companions that reach max level
-- A compact Tamagotchi-inspired sidebar and an optional movable in-game overlay
+| Wilderness | Morytania | Prifddinas | Ice Wolf Mountain |
+|---|---|---|---|
+| ![](src/main/resources/com/gieligotchi/images/backdrops/wilderness.png) | ![](src/main/resources/com/gieligotchi/images/backdrops/morytania.png) | ![](src/main/resources/com/gieligotchi/images/backdrops/prifddinas.png) | ![](src/main/resources/com/gieligotchi/images/backdrops/ice_wolf_mountain.png) |
 
-## Familiar places, made for your companion
+## Private, fair and portable
 
-Collect hand-crafted interpretations of recognisable Gielinor locations. Each
-scene is inspired by the game while leaving a clear little place at its centre
-for your active companion.
+> **Your save belongs to your character.** Progress is kept locally first. If you sign into RuneLite, Gieligotchi can sync character-specific snapshots through RuneLite's configuration service. Full export/import and local recovery copies remain available.
 
-<p align="center">
-  <img src="src/main/resources/com/gieligotchi/images/backdrops/wilderness.png" width="160" alt="Wilderness companion backdrop">
-  <img src="src/main/resources/com/gieligotchi/images/backdrops/pollnivneach.png" width="160" alt="Pollnivneach companion backdrop">
-  <img src="src/main/resources/com/gieligotchi/images/backdrops/fortis_colosseum.png" width="160" alt="Fortis Colosseum companion backdrop">
-  <img src="src/main/resources/com/gieligotchi/images/backdrops/tombs_of_amascut.png" width="160" alt="Tombs of Amascut companion backdrop">
-</p>
-
-From Lumbridge and Falador to Prifddinas, Morytania and the Wilderness, the
-collection turns familiar settings into small homes rather than literal game
-screenshots.
-
-## Care, play and collect
-
-Spend Gotchi Points on permanent cosmetic unlocks, then choose the home and toy
-that suit your companion. Toys use familiar Old School RuneScape items such as
-the gnomeball, Jad plush and hand fan. Cosmetics and progression belong only to
-Gieligotchi: they never change your character, items, XP, drops or pet ownership
-in RuneScape.
-
-## Built to stay out of your way
-
-Gieligotchi is meant to sit alongside the game, not compete with it.
-
-- Take breaks whenever you like; nothing decays while you are away.
-- Move or disable the in-game overlay at any time.
-- Use reduced-motion options for a quieter presentation.
-- Keep separate progress for each RuneLite profile.
-- Play without accounts, external services or cloud storage.
-
-## Privacy and fair play
-
-All Gieligotchi progress is stored locally in a profile file managed by the
-plugin.
-The plugin does not ask for RuneScape credentials, send your companion data to a
-third-party server, inject input or automate gameplay. It listens to RuneLite
-events only to recognise ordinary play and update its own cosmetic companion.
-
-The companion is a RuneLite interface element, not an in-world NPC, and provides
-no gameplay advantage.
+Gieligotchi never asks for RuneScape credentials, contacts a separate Gieligotchi server, automates input or changes your character, items, XP, drops or in-game pet ownership. It provides no gameplay advantage.
 
 ## Community
 
-Questions, hatch stories, feedback and companion screenshots are welcome in the
-[Gieligotchi Discord](https://discord.gg/dP9WN62QQE).
+Visit **[gieligotchi.com](https://gieligotchi.com/)** for the full companion showcase, rarity information and project updates, or **[join the Discord](https://discord.gg/dP9WN62QQE)** to share feedback, report an issue or discuss artwork commissions.
 
-<details>
-<summary><strong>Development</strong></summary>
+---
 
-Gieligotchi targets Java 11 and uses RuneLite's standard Plugin Hub build.
+Companion and backdrop artwork was created specifically for Gieligotchi with AI-assisted tools. Our goal is to replace all AI-assisted imagery with commissioned work by OSRS artists.
 
-```powershell
-.\gradlew.bat clean test
-.\gradlew.bat run
-```
+The idea of rewarding ordinary play with a companion collection was inspired by [OSRS TCG](https://github.com/Azderi/osrs-tcg) by Az. Gieligotchi is independently designed and implemented and does not use OSRS TCG code or artwork.
 
-The development client uses isolated in-memory preferences. Jagex account login
-setup follows RuneLite's standard external-plugin workflow.
-
-</details>
-
-## Artwork and attribution
-
-Companion and backdrop artwork was created specifically for Gieligotchi with
-AI-assisted tools. Familiar toy and partyhat graphics are rendered from
-RuneLite-provided Old School RuneScape item assets at runtime.
-
-We would love to collaborate with Old School RuneScape artists who are
-interested in replacing or refining the AI-assisted imagery throughout
-Gieligotchi. If that sounds like you, please reach out through the
-[Gieligotchi Discord](https://discord.gg/dP9WN62QQE).
-
-The idea of rewarding ordinary play with a companion collection was inspired by
-<a href="https://github.com/Azderi/osrs-tcg">OSRS TCG</a> by Az. Gieligotchi is
-an independently designed and implemented project and does not use OSRS TCG code
-or artwork.
-
-Gieligotchi is an independent community project and is not affiliated with or
-endorsed by Jagex or the RuneLite project. Old School RuneScape and related
-assets are the property of their respective owners.
-
-Released under the [BSD 2-Clause License](LICENSE).
+Gieligotchi is an independent community project and is not affiliated with or endorsed by Jagex or RuneLite. Old School RuneScape and related assets belong to their respective owners. Released under the [BSD 2-Clause License](LICENSE).
