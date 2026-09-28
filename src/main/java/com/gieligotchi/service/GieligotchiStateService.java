@@ -24,6 +24,7 @@ public class GieligotchiStateService
 	private static final String DEV_TOOLS_PROPERTY = "gieligotchi.devTools";
 	private final ProfileStore store;
 	private final HatchService hatchService;
+	private final SaveCodec codec;
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 	private volatile ProfileState state;
 	private volatile String profileKey;
@@ -37,15 +38,16 @@ public class GieligotchiStateService
 	private List<ProfileState> conflicts = new java.util.ArrayList<>();
 
 	@Inject
-	public GieligotchiStateService(ProfileStore store, HatchService hatchService)
+	public GieligotchiStateService(ProfileStore store, HatchService hatchService, SaveCodec codec)
 	{
 		this.store = store;
 		this.hatchService = hatchService;
+		this.codec = codec;
 	}
 
-	GieligotchiStateService(ProfileStore store, HatchService hatchService, ProfileSync profileSync)
+	GieligotchiStateService(ProfileStore store, HatchService hatchService, ProfileSync profileSync, SaveCodec codec)
 	{
-		this(store, hatchService);
+		this(store, hatchService, codec);
 		this.profileSync = profileSync;
 	}
 
@@ -70,7 +72,7 @@ public class GieligotchiStateService
 			{
 				if (generation != loadGeneration || !key.equals(profileKey)) { return; }
 				state = loaded;
-				lastSnapshot = SaveCodec.json(state);
+				lastSnapshot = codec.json(state);
 				sync(false);
 				newProfile = false;
 				recordLevel99IfNeeded();
@@ -99,14 +101,14 @@ public class GieligotchiStateService
 	public synchronized String exportSave()
 	{
 		if (state == null) { throw new IllegalStateException("Log into a character first."); }
-		return SaveCodec.json(state);
+		return codec.json(state);
 	}
 
 	public synchronized void importSave(String json, String expectedCharacter) throws java.io.IOException
 	{
 		if (state == null || !state.getProfileKey().equals(expectedCharacter))
 		{ throw new java.io.IOException("Character changed. Please try again."); }
-		ProfileState imported = SaveCodec.read(json, profileKey);
+		ProfileState imported = codec.read(json, profileKey);
 		store.archive(state);
 		store.archive(imported);
 		SaveCodec.acknowledge(imported, state);
@@ -150,7 +152,7 @@ public class GieligotchiStateService
 	public synchronized String getConflictToken()
 	{
 		StringBuilder token = new StringBuilder();
-		for (ProfileState alternative : conflicts) { token.append(SaveCodec.json(alternative)); }
+		for (ProfileState alternative : conflicts) { token.append(codec.json(alternative)); }
 		return token.toString();
 	}
 
@@ -159,7 +161,7 @@ public class GieligotchiStateService
 		if (state == null || !profileKey.equals(expectedCharacter) || conflicts.isEmpty()
 			|| !getConflictToken().equals(token) || choice < 0 || choice > conflicts.size())
 		{ throw new java.io.IOException("Save choices changed. Open them again."); }
-		ProfileState selected = SaveCodec.read(SaveCodec.json(choice == 0 ? state : conflicts.get(choice - 1)), profileKey);
+		ProfileState selected = codec.read(codec.json(choice == 0 ? state : conflicts.get(choice - 1)), profileKey);
 		store.archive(state);
 		for (ProfileState alternative : conflicts) { store.archive(alternative); }
 		SaveCodec.acknowledge(selected, state);
@@ -200,22 +202,22 @@ public class GieligotchiStateService
 					// An unversioned existing local save predates sync: require an explicit choice.
 					if (!candidate.getSaveVersions().isEmpty() && SaveCodec.dominates(other, candidate)) { superseded = true; break; }
 				}
-				if (!superseded && latest.stream().noneMatch(existing -> SaveCodec.json(existing).equals(SaveCodec.json(candidate))))
+				if (!superseded && latest.stream().noneMatch(existing -> codec.json(existing).equals(codec.json(candidate))))
 				{ latest.add(candidate); }
 			}
 			conflicts.clear();
 			if (latest.size() > 1)
 			{
 				for (ProfileState alternative : latest)
-				{ if (!SaveCodec.json(alternative).equals(SaveCodec.json(state))) { conflicts.add(alternative); } }
+				{ if (!codec.json(alternative).equals(codec.json(state))) { conflicts.add(alternative); } }
 				syncStatus = "Two devices have different progress. Open Save & sync to choose. Neither is overwritten.";
 				return;
 			}
-			if (!latest.isEmpty() && latest.get(0) != state && !SaveCodec.json(latest.get(0)).equals(SaveCodec.json(state)))
+			if (!latest.isEmpty() && latest.get(0) != state && !codec.json(latest.get(0)).equals(codec.json(state)))
 			{
 				store.archive(state);
 				state = latest.get(0);
-				lastSnapshot = SaveCodec.json(state);
+				lastSnapshot = codec.json(state);
 				replacementVersion++;
 				store.save(profileKey, state);
 				fireChanged();
@@ -658,12 +660,12 @@ public class GieligotchiStateService
 		String key = profileKey;
 		if (current != null && key != null)
 		{
-			String snapshot = SaveCodec.json(current);
+			String snapshot = codec.json(current);
 			if (!snapshot.equals(lastSnapshot) || current.getSaveVersions().isEmpty())
 			{
 				try { current.getSaveVersions().merge(store.deviceId(), 1L, Long::sum); }
 				catch (java.io.IOException error) { syncStatus = "Local save only: cannot create device identity."; }
-				lastSnapshot = SaveCodec.json(current);
+				lastSnapshot = codec.json(current);
 				store.save(key, current);
 			}
 		}

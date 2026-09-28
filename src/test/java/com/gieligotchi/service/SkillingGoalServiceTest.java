@@ -37,7 +37,7 @@ public class SkillingGoalServiceTest
 			store.save("skiller", initial);
 			executor.submit(() -> { }).get(5, TimeUnit.SECONDS);
 
-			GieligotchiStateService service = new GieligotchiStateService(store, new HatchService(null));
+			GieligotchiStateService service = new GieligotchiStateService(store, new HatchService(null), new SaveCodec(new Gson()));
 			CountDownLatch loaded = new CountDownLatch(1);
 			service.addListener(() -> { if (service.getState() != null) { loaded.countDown(); } });
 			service.load("skiller");
@@ -73,7 +73,7 @@ public class SkillingGoalServiceTest
 			store.save("post-hatch", initial);
 			executor.submit(() -> { }).get(5, TimeUnit.SECONDS);
 
-			GieligotchiStateService service = new GieligotchiStateService(store, new HatchService(null));
+			GieligotchiStateService service = new GieligotchiStateService(store, new HatchService(null), new SaveCodec(new Gson()));
 			CountDownLatch loaded = new CountDownLatch(1);
 			service.addListener(() -> { if (service.getState() != null) { loaded.countDown(); } });
 			service.load("post-hatch");

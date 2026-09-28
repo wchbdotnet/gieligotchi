@@ -21,6 +21,7 @@ public class ProfileSyncTest
 	private static final String CHARACTER = "account-123";
 	private static final String DEVICE_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 	private static final String DEVICE_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+	private static final SaveCodec CODEC = new SaveCodec(new Gson());
 
 	private static ProfileState saved(String device, long version, long points)
 	{
@@ -34,17 +35,17 @@ public class ProfileSyncTest
 	{
 		ProfileState state = saved(DEVICE_A, 3, 4321);
 		state.award(456);
-		String json = SaveCodec.json(state);
-		assertEquals(json, SaveCodec.json(SaveCodec.unpack(SaveCodec.pack(state), CHARACTER)));
+		String json = CODEC.json(state);
+		assertEquals(json, CODEC.json(CODEC.unpack(CODEC.pack(state), CHARACTER)));
 	}
 
 	@Test public void rejectsWrongCharacterAndBrokenOrFutureFiles() throws Exception
 	{
-		String json = SaveCodec.json(saved(DEVICE_A, 1, 2));
-		assertThrows(IllegalArgumentException.class, () -> SaveCodec.read(json, "account-other"));
-		assertThrows(IllegalArgumentException.class, () -> SaveCodec.read("{}", CHARACTER));
-		assertThrows(IllegalArgumentException.class, () -> SaveCodec.read(json.replace("\"schemaVersion\":1", "\"schemaVersion\":9"), CHARACTER));
-		assertThrows(java.io.IOException.class, () -> SaveCodec.unpack("v1:broken", CHARACTER));
+		String json = CODEC.json(saved(DEVICE_A, 1, 2));
+		assertThrows(IllegalArgumentException.class, () -> CODEC.read(json, "account-other"));
+		assertThrows(IllegalArgumentException.class, () -> CODEC.read("{}", CHARACTER));
+		assertThrows(IllegalArgumentException.class, () -> CODEC.read(json.replace("\"schemaVersion\":1", "\"schemaVersion\":9"), CHARACTER));
+		assertThrows(java.io.IOException.class, () -> CODEC.unpack("v1:broken", CHARACTER));
 	}
 
 	@Test public void divergentDevicesAreNotOrderedByClockTime()
@@ -115,7 +116,7 @@ public class ProfileSyncTest
 		try (Fixture f = new Fixture(saved(DEVICE_A, 3, 100)))
 		{
 			f.load();
-			f.service.importSave(SaveCodec.json(saved(DEVICE_B, 2, 200)), CHARACTER);
+			f.service.importSave(CODEC.json(saved(DEVICE_B, 2, 200)), CHARACTER);
 			assertEquals(200, f.service.getState().getGotchiPoints());
 			assertEquals(2, f.recoveries());
 			assertThrows(java.io.IOException.class, () -> f.service.importSave(f.service.exportSave(), "account-other"));
@@ -127,9 +128,9 @@ public class ProfileSyncTest
 	{
 		ProfileState state = saved(DEVICE_A, 1, 200);
 		for (int i = 0; i < 2000; i++) { state.getSkillBaselines().put(UUID.randomUUID().toString(), i); }
-		String before = SaveCodec.json(state);
-		assertThrows(java.io.IOException.class, () -> SaveCodec.pack(state));
-		assertEquals(before, SaveCodec.json(state));
+		String before = CODEC.json(state);
+		assertThrows(java.io.IOException.class, () -> CODEC.pack(state));
+		assertEquals(before, CODEC.json(state));
 	}
 
 	@Test public void corruptRemoteBlocksPublishingWithoutReplacingLocal() throws Exception
@@ -151,7 +152,7 @@ public class ProfileSyncTest
 		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 		final ProfileStore store = new ProfileStore(new Gson(), executor, directory);
 		final FakeCloud cloud = new FakeCloud();
-		final GieligotchiStateService service = new GieligotchiStateService(store, new HatchService(null), cloud);
+		final GieligotchiStateService service = new GieligotchiStateService(store, new HatchService(null), cloud, CODEC);
 		Fixture(ProfileState local) throws Exception
 		{
 			if (local != null) { store.save(CHARACTER, local); drain(); }
@@ -177,7 +178,7 @@ public class ProfileSyncTest
 		{
 			if (broken) { throw new java.io.IOException("Invalid synced save"); }
 			List<ProfileState> copies = new ArrayList<>();
-			for (ProfileState state : saves) { copies.add(SaveCodec.read(SaveCodec.json(state), character)); }
+			for (ProfileState state : saves) { copies.add(CODEC.read(CODEC.json(state), character)); }
 			return copies;
 		}
 		@Override public void publish(String profile, String device, ProfileState state) { publishes++; }
