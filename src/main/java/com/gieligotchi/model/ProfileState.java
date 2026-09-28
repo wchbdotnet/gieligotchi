@@ -11,6 +11,8 @@ import java.util.Map;
 public class ProfileState
 {
 	private int schemaVersion = 1;
+	// Vector clock: independent device progress is a conflict, never a last-write-wins overwrite.
+	private Map<String, Long> saveVersions = new LinkedHashMap<>();
 	private String profileKey;
 	private boolean starterEggGranted;
 	// Kept distinct from the original modal flag so existing profiles receive the inline welcome once.
@@ -48,6 +50,11 @@ public class ProfileState
 	}
 
 	public int getSchemaVersion() { return schemaVersion; }
+	public Map<String, Long> getSaveVersions()
+	{
+		if (saveVersions == null) { saveVersions = new LinkedHashMap<>(); }
+		return saveVersions;
+	}
 	public String getProfileKey() { return profileKey; }
 	public EggState getActiveEgg() { return activeEgg; }
 	public CompanionInstance getActiveCompanion() { return activeCompanion; }

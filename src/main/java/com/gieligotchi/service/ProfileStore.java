@@ -1,7 +1,6 @@
 package com.gieligotchi.service;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.gieligotchi.model.ProfileState;
 import java.io.IOException;
 import java.io.Reader;
@@ -22,22 +21,24 @@ import net.runelite.client.RuneLite;
 public class ProfileStore
 {
 	private final Gson gson;
-	private final ScheduledExecutorService executor;
+	private final java.util.concurrent.Executor executor;
 	private final Path directory;
 	private final Object fileLock = new Object();
+	private String deviceId;
 
 	@Inject
 	public ProfileStore(Gson gson, ScheduledExecutorService executor)
 	{
 		this.gson = gson.newBuilder().setPrettyPrinting().create();
-		this.executor = executor;
-		this.directory = RuneLite.RUNELITE_DIR.toPath().resolve("gieligotchi").resolve("profiles");
+		this.executor = new SerialTasks(executor);
+		this.directory = RuneLite.RUNELITE_DIR.toPath().resolve("gieligotchi")
+			.resolve(Boolean.getBoolean("gieligotchi.devTools") ? "profiles-dev" : "profiles");
 	}
 
 	ProfileStore(Gson gson, ScheduledExecutorService executor, Path directory)
 	{
 		this.gson = gson.newBuilder().setPrettyPrinting().create();
-		this.executor = executor;
+		this.executor = new SerialTasks(executor);
 		this.directory = directory;
 	}
 
@@ -71,6 +72,45 @@ public class ProfileStore
 		writeAsync(profileKey, fileFor(profileKey), snapshot, "save");
 	}
 
+	public boolean exists(String key)
+	{
+		return Files.exists(fileFor(key)) || Files.exists(backupFileFor(key));
+	}
+
+	public String deviceId() throws IOException
+	{
+		synchronized (fileLock)
+		{
+			if (deviceId == null)
+			{
+				Path path = directory.resolve("device-id.txt");
+				if (Files.exists(path))
+				{
+					deviceId = java.util.UUID.fromString(Files.readString(path).trim()).toString();
+				}
+				else
+				{
+					deviceId = java.util.UUID.randomUUID().toString();
+					write(path, deviceId);
+				}
+			}
+			return deviceId;
+		}
+	}
+
+	/** Recovery files are never overwritten by routine logout backups. */
+	public Path archive(ProfileState state) throws IOException
+	{
+		synchronized (fileLock)
+		{
+			Path path = directory.resolve("recovery-" + java.util.UUID.randomUUID() + ".json");
+			write(path, gson.toJson(state));
+			return path;
+		}
+	}
+
+	public Path getDirectory() { return directory; }
+
 	public void backup(String profileKey, ProfileState state)
 	{
 		if (profileKey == null || state == null) { return; }
@@ -82,21 +122,8 @@ public class ProfileStore
 	{
 		if (profileKey == null || state == null) { return; }
 		String snapshot = gson.toJson(state);
-		executor.execute(() ->
-		{
-			try
-			{
-				synchronized (fileLock)
-				{
-					write(fileFor(profileKey), snapshot);
-					write(backupFileFor(profileKey), snapshot);
-				}
-			}
-			catch (IOException error)
-			{
-				log.debug("Unable to reset Gieligotchi profile {}", profileKey, error);
-			}
-		});
+		writeAsync(profileKey, fileFor(profileKey), snapshot, "reset");
+		writeAsync(profileKey, backupFileFor(profileKey), snapshot, "reset backup");
 	}
 
 	private ProfileState loadWithBackup(String profileKey, Path file) throws IOException
@@ -128,7 +155,10 @@ public class ProfileStore
 		{
 			try
 			{
-				synchronized (fileLock) { write(file, snapshot); }
+				synchronized (fileLock)
+				{
+					write(file, snapshot);
+				}
 			}
 			catch (IOException error)
 			{
@@ -166,5 +196,38 @@ public class ProfileStore
 	{
 		String safe = profileKey.replaceAll("[^A-Za-z0-9_-]", "_");
 		return directory.resolve(safe + ".backup.json");
+	}
+
+	/** Keep disk loads and writes in request order even on RuneLite's shared thread pool. */
+	private static final class SerialTasks implements java.util.concurrent.Executor
+	{
+		private final java.util.concurrent.Executor delegate;
+		private final java.util.Queue<Runnable> tasks = new java.util.ArrayDeque<>();
+		private boolean running;
+		private SerialTasks(java.util.concurrent.Executor delegate) { this.delegate = delegate; }
+		@Override public synchronized void execute(Runnable task)
+		{
+			tasks.add(task);
+			if (!running)
+			{
+				running = true;
+				try { delegate.execute(this::drain); }
+				catch (RuntimeException error) { running = false; tasks.remove(task); throw error; }
+			}
+		}
+		private void drain()
+		{
+			while (true)
+			{
+				Runnable next;
+				synchronized (this)
+				{
+					next = tasks.poll();
+					if (next == null) { running = false; return; }
+				}
+				try { next.run(); }
+				catch (RuntimeException error) { log.warn("Gieligotchi save operation failed", error); }
+			}
+		}
 	}
 }
