@@ -387,7 +387,7 @@ public class GieligotchiPanel extends PluginPanel
 		JScrollPane scroll = new JScrollPane(content);
 		scroll.setBorder(BorderFactory.createEmptyBorder());
 		scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+		scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 		scroll.getViewport().setOpaque(false);
 		scroll.setOpaque(false);
 		scroll.getVerticalScrollBar().setUnitIncrement(16);
