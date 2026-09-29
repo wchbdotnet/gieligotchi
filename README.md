@@ -43,6 +43,8 @@ A Tamagotchi-style companion without the chores. Nothing decays when you step aw
 |---|---|---|---|
 | Begin with a little mystery. | Skill, fight and finish quests to earn Bonding XP. | Hatch a species, colour and personality. | Build affection, grant wishes and grow your collection. |
 
+<br>
+
 ### A companion with a life of its own
 
 - 71 species, 11 colours and 781 possible combinations
@@ -58,6 +60,8 @@ Collect interpretations of recognisable Gielinor locations and give your active 
 | Wilderness | Morytania | Prifddinas | Ice Wolf Mountain |
 |---|---|---|---|
 | ![](src/main/resources/com/gieligotchi/images/backdrops/wilderness.png) | ![](src/main/resources/com/gieligotchi/images/backdrops/morytania.png) | ![](src/main/resources/com/gieligotchi/images/backdrops/prifddinas.png) | ![](src/main/resources/com/gieligotchi/images/backdrops/ice_wolf_mountain.png) |
+
+<br>
 
 ## Private, fair and portable
 
