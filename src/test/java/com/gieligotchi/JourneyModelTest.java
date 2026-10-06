@@ -165,6 +165,18 @@ public class JourneyModelTest
 		assertEquals(0L, companion.getWishSkipXpRemainder());
 	}
 
+	@Test
+	public void developmentResetRestoresAllWishSkips()
+	{
+		CompanionInstance companion = companion();
+		assertTrue(companion.rerollWish());
+		assertTrue(companion.rerollWish());
+		companion.addXp(1_250L);
+		companion.resetWishSkipsForDevelopment();
+		assertEquals(3, companion.getWishSkips());
+		assertEquals(0L, companion.getWishSkipXpRemainder());
+	}
+
 	private static CompanionInstance companion()
 	{
 		return CompanionInstance.from(new HatchReceipt("egg", EggTier.COMMON, "soup",

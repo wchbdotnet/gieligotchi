@@ -45,8 +45,11 @@ turning it into another list of chores.
 3. **Welcome your hatchling.** Discover its species, colour and personality.
 4. **Make it yours.** Build affection, grant wishes, play with familiar
    Gielinor toys and collect backdrops for its home.
-5. **Keep the memories.** Raise companions over time and build a collection of
-   the little lives that travelled with you.
+5. **Follow a heartfelt wish.** Occasionally your companion suggests a peculiar,
+   optional adventure: a named location, crafting chain, boss outing or fresh
+   drop. Accept it for substantial Bonding XP and Gotchi Points, or pass for free.
+6. **Keep the memories.** Open Collection > Memories to revisit the individual
+   journal and Heartfelt history of any active or stashed companion.
 
 Gieligotchi keeps some discoveries behind the journey itself. The guide explains
 what to expect without turning every hatch, wish or reward into a spreadsheet.
@@ -55,7 +58,8 @@ what to expect without turning every hatch, wish or reward into a spreadsheet.
 
 - **71 companion species** and **781 collectible colour variants**
 - Individual personalities, wishes, favourite toys and affection
-- A persistent memory book for meaningful moments
+- Account-aware Heartfelt Wishes with specific Gielinor tasks and free passing
+- A persistent, per-companion memory book for meaningful moments
 - Animated hatching and a history of every companion you have raised
 - A special red partyhat for companions that reach max level
 - A compact Tamagotchi-inspired sidebar and an optional movable in-game overlay
@@ -81,7 +85,8 @@ screenshots.
 
 Spend Gotchi Points on permanent cosmetic unlocks, then choose the home and toy
 that suit your companion. Toys use familiar Old School RuneScape items such as
-the gnomeball, Jad plush and hand fan. Cosmetics and progression belong only to
+the gnomeball, Jad plush and hand fan. Keeping a toy equipped gives the active
+companion a small 10% Bonding XP boost. Cosmetics and progression belong only to
 Gieligotchi: they never change your character, items, XP, drops or pet ownership
 in RuneScape.
 
@@ -142,6 +147,11 @@ The idea of rewarding ordinary play with a companion collection was inspired by
 <a href="https://github.com/Azderi/osrs-tcg">OSRS TCG</a> by Az. Gieligotchi is
 an independently designed and implemented project and does not use OSRS TCG code
 or artwork.
+
+Heartfelt Wish collection-hunt groups and prerequisite ideas were adapted from
+<a href="https://github.com/AmTrollin/xtreme-tasker-osrs">Xtreme Tasker</a> by
+AmTrollin under its BSD 2-Clause licence. Gieligotchi uses its own task selection,
+progression, reward and interface systems.
 
 Gieligotchi is an independent community project and is not affiliated with or
 endorsed by Jagex or the RuneLite project. Old School RuneScape and related

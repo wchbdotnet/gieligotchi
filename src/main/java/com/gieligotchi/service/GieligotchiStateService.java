@@ -5,12 +5,14 @@ import com.gieligotchi.model.Backdrop;
 import com.gieligotchi.model.EggState;
 import com.gieligotchi.model.EggTier;
 import com.gieligotchi.model.HatchReceipt;
+import com.gieligotchi.model.HeartfeltWish;
 import com.gieligotchi.model.ProfileState;
 import com.gieligotchi.model.SkillingGoal;
 import com.gieligotchi.model.SkillingActivity;
 import com.gieligotchi.model.Toy;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -36,6 +38,7 @@ public class GieligotchiStateService
 	private volatile long replacementVersion;
 	private volatile String syncStatus = "Log into a character to manage saves.";
 	private List<ProfileState> conflicts = new java.util.ArrayList<>();
+	private final Random heartfeltRandom = new Random();
 
 	@Inject
 	public GieligotchiStateService(ProfileStore store, HatchService hatchService, SaveCodec codec)
@@ -235,6 +238,11 @@ public class GieligotchiStateService
 
 	public synchronized long observeSkill(Skill skill, int xp, long overallXp)
 	{
+		return observeSkill(skill, xp, overallXp, -1, -1, -1);
+	}
+
+	public synchronized long observeSkill(Skill skill, int xp, long overallXp, int x, int y, int plane)
+	{
 		if (state == null) { return 0; }
 		Integer previous = skill == null ? null : state.getSkillBaselines().get(skill.name());
 		long rawDelta = previous == null ? 0 : Math.max(0, xp - previous);
@@ -247,6 +255,7 @@ public class GieligotchiStateService
 		if (companion != null && rawDelta > 0)
 		{
 			companion.recordSkill(skill.name(), rawDelta);
+			companion.recordHeartfeltSkill(skill.name(), rawDelta, x, y, plane);
 			if (companion.getMegaWish() != null) { companion.getMegaWish().record(skill, rawDelta); }
 		}
 		persist();
@@ -310,7 +319,11 @@ public class GieligotchiStateService
 		long amount = ActivityRewardPolicy.npcKillAward(npcId, name, combatLevel);
 		state.award(amount);
 		recordLevel99IfNeeded();
-		if (state.getActiveCompanion() != null) { state.getActiveCompanion().recordNpcKill(name, combatLevel); }
+		if (state.getActiveCompanion() != null)
+		{
+			state.getActiveCompanion().recordNpcKill(name, combatLevel);
+			state.getActiveCompanion().recordHeartfeltNpc(name);
+		}
 		sealIfReady();
 		persist();
 		fireChanged();
@@ -324,6 +337,7 @@ public class GieligotchiStateService
 		recordLevel99IfNeeded();
 		if (state.getActiveCompanion() != null)
 		{
+			state.getActiveCompanion().recordHeartfeltActivity(id);
 			if (ActivityRewardPolicy.isQuestOrClue(id))
 			{
 				state.getActiveCompanion().recordQuestOrClue(label);
@@ -367,7 +381,7 @@ public class GieligotchiStateService
 	{
 		if (state == null) { return null; }
 		CompanionInstance companion = state.revealActiveEgg();
-		if (companion != null) { persist(); fireChanged(); }
+		if (companion != null) { maybeOfferHeartfelt(companion); persist(); fireChanged(); }
 		return companion;
 	}
 
@@ -484,6 +498,7 @@ public class GieligotchiStateService
 		recordLevel99IfNeeded();
 		if (!companion.claimWish(LevelCurve.levelFor(companion))) { return false; }
 		state.grantGotchiPoints(3);
+		maybeOfferHeartfelt(companion);
 		persist(); fireChanged(); return true;
 	}
 
@@ -492,7 +507,46 @@ public class GieligotchiStateService
 		if (state == null || state.getActiveCompanion() == null) { return false; }
 		CompanionInstance companion = state.getActiveCompanion();
 		if (!companion.rerollWish(LevelCurve.levelFor(companion))) { return false; }
+		maybeOfferHeartfelt(companion);
 		persist(); fireChanged(); return true;
+	}
+
+	public synchronized boolean acceptHeartfeltWish()
+	{
+		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
+		if (companion == null || !companion.acceptHeartfeltWish()) { return false; }
+		persist(); fireChanged(); return true;
+	}
+
+	/** Heartfelt Wishes always pass for free and never consume an ordinary wish skip. */
+	public synchronized boolean passHeartfeltWish()
+	{
+		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
+		if (companion == null || !companion.passHeartfeltWish()) { return false; }
+		persist(); fireChanged(); return true;
+	}
+
+	public synchronized boolean claimHeartfeltWish()
+	{
+		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
+		HeartfeltWish wish = companion == null ? null : companion.getHeartfeltWish();
+		if (wish == null || !wish.isComplete()) { return false; }
+		long rewardXp = wish.getRewardXp();
+		long rewardPoints = wish.getRewardPoints();
+		if (companion.finishHeartfeltWish() == null) { return false; }
+		state.award(rewardXp);
+		state.grantGotchiPoints(rewardPoints);
+		recordLevel99IfNeeded();
+		persist(); fireChanged(); return true;
+	}
+
+	public synchronized void recordHeartfeltItem(int itemId, long quantity, int x, int y, int plane)
+	{
+		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
+		if (companion == null || companion.getHeartfeltWish() == null || quantity <= 0) { return; }
+		long before = companion.getHeartfeltWish().getProgress();
+		companion.recordHeartfeltItem(itemId, quantity, x, y, plane);
+		if (companion.getHeartfeltWish().getProgress() != before) { persist(); fireChanged(); }
 	}
 
 	public synchronized boolean startEggSkillingGoal(Skill skill, int target)
@@ -528,10 +582,14 @@ public class GieligotchiStateService
 	public synchronized void recordSkillingActivity(SkillingActivity.Completion completion)
 	{
 		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
-		if (companion == null || companion.getMegaWish() == null || completion == null) { return; }
-		long before = companion.getMegaWish().getProgress();
-		companion.getMegaWish().record(completion);
-		if (companion.getMegaWish().getProgress() > before) { persist(); fireChanged(); }
+		if (companion == null || completion == null) { return; }
+		long megaBefore = companion.getMegaWish() == null ? -1 : companion.getMegaWish().getProgress();
+		long heartfeltBefore = companion.getHeartfeltWish() == null ? -1 : companion.getHeartfeltWish().getProgress();
+		if (companion.getMegaWish() != null) { companion.getMegaWish().record(completion); }
+		companion.recordHeartfeltActivity(completion.getActivity().name());
+		if (companion.getMegaWish() != null && companion.getMegaWish().getProgress() > megaBefore
+			|| companion.getHeartfeltWish() != null && companion.getHeartfeltWish().getProgress() != heartfeltBefore)
+		{ persist(); fireChanged(); }
 	}
 
 	public synchronized long claimMegaWish()
@@ -629,6 +687,74 @@ public class GieligotchiStateService
 		state = ProfileState.fresh(profileKey);
 		persist();
 		fireChanged();
+	}
+
+	public synchronized void devResetWishSkips()
+	{
+		if (!devToolsEnabled() || state == null || state.getActiveCompanion() == null) { return; }
+		state.getActiveCompanion().resetWishSkipsForDevelopment();
+		persist();
+		fireChanged();
+	}
+
+	public synchronized void devForceHeartfeltWish()
+	{
+		if (!devToolsEnabled() || state == null || state.getActiveCompanion() == null) { return; }
+		HeartfeltWish wish = HeartfeltCatalogue.roll(accountLevels(), accountTotalLevel(),
+			java.util.Collections.emptyList(), heartfeltRandom);
+		state.getActiveCompanion().forceHeartfeltWish(wish);
+		persist(); fireChanged();
+	}
+
+	public synchronized void devForceHeartfeltWish(String taskId)
+	{
+		if (!devToolsEnabled() || state == null || state.getActiveCompanion() == null) { return; }
+		state.getActiveCompanion().forceHeartfeltWish(
+			HeartfeltCatalogue.force(taskId, accountLevels(), accountTotalLevel()));
+		persist(); fireChanged();
+	}
+
+	public synchronized void devAcceptHeartfeltWish()
+	{
+		if (!devToolsEnabled()) { return; }
+		acceptHeartfeltWish();
+	}
+
+	public synchronized void devAdvanceHeartfeltWish()
+	{
+		if (!devToolsEnabled() || state == null || state.getActiveCompanion() == null
+			|| state.getActiveCompanion().getHeartfeltWish() == null) { return; }
+		state.getActiveCompanion().getHeartfeltWish().advanceForDevelopment();
+		persist(); fireChanged();
+	}
+
+	public synchronized void devCompleteHeartfeltWish()
+	{
+		if (!devToolsEnabled() || state == null || state.getActiveCompanion() == null
+			|| state.getActiveCompanion().getHeartfeltWish() == null) { return; }
+		state.getActiveCompanion().getHeartfeltWish().completeForDevelopment();
+		persist(); fireChanged();
+	}
+
+	private void maybeOfferHeartfelt(CompanionInstance companion)
+	{
+		if (companion != null) { companion.considerHeartfeltWish(accountLevels(), accountTotalLevel(), heartfeltRandom); }
+	}
+
+	private Map<String, Integer> accountLevels()
+	{
+		return state == null ? java.util.Collections.emptyMap() : state.getSkillLevelBaselines();
+	}
+
+	private int accountTotalLevel()
+	{
+		if (state == null) { return 1; }
+		int total = 0;
+		for (Map.Entry<String, Integer> entry : state.getSkillLevelBaselines().entrySet())
+		{
+			if (!"OVERALL".equals(entry.getKey()) && entry.getValue() != null) { total += Math.max(1, entry.getValue()); }
+		}
+		return Math.max(1, total);
 	}
 
 	private boolean devToolsEnabled()

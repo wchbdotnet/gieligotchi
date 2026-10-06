@@ -78,7 +78,7 @@ public class SkillingGoalTest
 		SkillingGoal wish = profile.getActiveCompanion().getMegaWish();
 		assertEquals(0, profile.getActiveCompanion().claimMegaWish());
 		wish.record(Skill.COOKING, 100_000);
-		assertEquals(35_000, profile.getActiveCompanion().claimMegaWish());
+		assertEquals(50_000, profile.getActiveCompanion().claimMegaWish());
 		assertEquals(0, profile.getActiveCompanion().claimMegaWish());
 	}
 

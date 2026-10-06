@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import com.gieligotchi.service.HeartfeltCatalogue;
 
 public class CompanionInstance
 {
@@ -48,6 +49,11 @@ public class CompanionInstance
 	private List<Integer> regionsVisited = new ArrayList<>();
 	private List<MemoryEntry> memories = new ArrayList<>();
 	private CompanionWish wish;
+	private HeartfeltWish heartfeltWish;
+	private int heartfeltCompletions;
+	private Integer wishesUntilHeartfelt;
+	private List<String> recentHeartfeltTaskIds = new ArrayList<>();
+	private boolean lastHeartfeltWasApex;
 	private Integer wishSkips;
 	private long wishSkipXpRemainder;
 	private String favoriteToyId;
@@ -91,6 +97,8 @@ public class CompanionInstance
 	public RelationshipStage getRelationshipStage() { return RelationshipStage.forHearts(affectionHearts); }
 	public CompanionPersonality getPersonality() { return personality; }
 	public CompanionWish getWish() { return wish; }
+	public HeartfeltWish getHeartfeltWish() { return heartfeltWish; }
+	public int getHeartfeltCompletions() { return heartfeltCompletions; }
 	public int getWishSkips() { return wishSkips == null ? MAX_WISH_SKIPS : wishSkips; }
 	public long getWishSkipXpRemainder() { return wishSkipXpRemainder; }
 	public List<MemoryEntry> getMemories() { return memories; }
@@ -108,6 +116,9 @@ public class CompanionInstance
 		if (toyInteractions == null) { toyInteractions = new LinkedHashMap<>(); }
 		if (regionsVisited == null) { regionsVisited = new ArrayList<>(); }
 		if (memories == null) { memories = new ArrayList<>(); }
+		if (recentHeartfeltTaskIds == null) { recentHeartfeltTaskIds = new ArrayList<>(); }
+		if (heartfeltWish != null) { heartfeltWish.repair(); }
+		heartfeltCompletions = Math.max(0, heartfeltCompletions);
 		if (wish == null) { wish = createWish(null, 1); }
 		if (wishSkips == null) { wishSkips = MAX_WISH_SKIPS; }
 		wishSkips = Math.max(0, Math.min(MAX_WISH_SKIPS, wishSkips));
@@ -133,6 +144,13 @@ public class CompanionInstance
 	}
 	public boolean rerollWish() { return rerollWish(1); }
 
+	/** Restores the local test companion's ordinary wish allowance. */
+	public void resetWishSkipsForDevelopment()
+	{
+		wishSkips = MAX_WISH_SKIPS;
+		wishSkipXpRemainder = 0;
+	}
+
 	public boolean claimWish(int nextWishLevel)
 	{
 		if (wish == null || !wish.isComplete()) { return false; }
@@ -145,6 +163,79 @@ public class CompanionInstance
 		return true;
 	}
 	public boolean claimWish() { return claimWish(1); }
+
+	public boolean considerHeartfeltWish(Map<String, Integer> levels, int totalLevel, Random random)
+	{
+		if (heartfeltWish != null) { return false; }
+		Random rng = random == null ? new Random() : random;
+		if (wishesUntilHeartfelt == null) { wishesUntilHeartfelt = 1 + rng.nextInt(5); }
+		wishesUntilHeartfelt--;
+		if (wishesUntilHeartfelt > 0) { return false; }
+		HeartfeltWish candidate = HeartfeltCatalogue.roll(levels, totalLevel, recentHeartfeltTaskIds, rng);
+		for (int retry = 0; retry < 6 && candidate != null && candidate.isApex() && lastHeartfeltWasApex; retry++)
+		{ candidate = HeartfeltCatalogue.roll(levels, totalLevel, recentHeartfeltTaskIds, rng); }
+		heartfeltWish = candidate;
+		wishesUntilHeartfelt = 5;
+		return heartfeltWish != null;
+	}
+
+	public boolean forceHeartfeltWish(HeartfeltWish wish)
+	{
+		if (wish == null) { return false; }
+		heartfeltWish = wish;
+		wishesUntilHeartfelt = 5;
+		return true;
+	}
+
+	public boolean acceptHeartfeltWish()
+	{
+		if (heartfeltWish == null || heartfeltWish.isAccepted()) { return false; }
+		heartfeltWish.accept();
+		return true;
+	}
+
+	public boolean passHeartfeltWish()
+	{
+		if (heartfeltWish == null) { return false; }
+		rememberHeartfelt(heartfeltWish);
+		heartfeltWish = null;
+		return true;
+	}
+
+	public HeartfeltWish finishHeartfeltWish()
+	{
+		if (heartfeltWish == null || !heartfeltWish.isComplete()) { return null; }
+		HeartfeltWish completed = heartfeltWish;
+		heartfeltCompletions++;
+		affectionHearts = Math.min(100, affectionHearts + 2);
+		addPersonalityPoint(CompanionPersonality.ADVENTUROUS, completed.isApex() ? 4 : 2);
+		addMemoryOnce(completed.isApex() ? "Apex wish fulfilled" : "Heartfelt wish fulfilled", completed.getTitle());
+		checkRelationshipMilestones();
+		rememberHeartfelt(completed);
+		heartfeltWish = null;
+		return completed;
+	}
+
+	public void recordHeartfeltItem(int itemId, long quantity, int x, int y, int plane)
+	{ if (heartfeltWish != null) { heartfeltWish.recordItem(itemId, quantity, x, y, plane); } }
+	public void recordHeartfeltSkill(String skill, long xp, int x, int y, int plane)
+	{ if (heartfeltWish != null) { heartfeltWish.recordSkill(skill, xp, x, y, plane); } }
+	public void recordHeartfeltNpc(String npcName)
+	{ if (heartfeltWish != null) { heartfeltWish.recordNpc(npcName); } }
+	public void recordHeartfeltActivity(String activityId)
+	{ if (heartfeltWish != null) { heartfeltWish.recordActivity(activityId); } }
+
+	private void rememberHeartfelt(HeartfeltWish completed)
+	{
+		if (completed == null) { return; }
+		lastHeartfeltWasApex = completed.isApex();
+		if (completed.getTaskId() != null)
+		{
+			recentHeartfeltTaskIds.remove(completed.getTaskId());
+			recentHeartfeltTaskIds.add(completed.getTaskId());
+			while (recentHeartfeltTaskIds.size() > 10) { recentHeartfeltTaskIds.remove(0); }
+		}
+	}
 
 	public void recordSkill(String skillName, long rawXp)
 	{
@@ -243,7 +334,7 @@ public class CompanionInstance
 
 	private void progressWish(CompanionWish.Type type, long amount)
 	{
-		if (wish != null && wish.getType() == type && !wish.isComplete()) { wish.addProgress(amount); }
+		if (heartfeltWish == null && wish != null && wish.getType() == type && !wish.isComplete()) { wish.addProgress(amount); }
 	}
 
 	private void earnWishSkipProgress(long bondingXp)
