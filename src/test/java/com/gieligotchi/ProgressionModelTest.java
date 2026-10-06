@@ -4,10 +4,12 @@ import com.google.gson.Gson;
 import com.gieligotchi.model.CompanionInstance;
 import com.gieligotchi.model.Backdrop;
 import com.gieligotchi.model.EggState;
+import com.gieligotchi.model.EggTier;
 import com.gieligotchi.model.HatchReceipt;
 import com.gieligotchi.model.Palette;
 import com.gieligotchi.model.ProfileState;
 import com.gieligotchi.model.SpeciesRarity;
+import com.gieligotchi.model.Toy;
 import com.gieligotchi.service.HatchService;
 import com.gieligotchi.service.LevelCurve;
 import com.gieligotchi.service.CompanionValue;
@@ -253,14 +255,47 @@ public class ProgressionModelTest
 		CompanionInstance companion = CompanionInstance.from(receipt);
 		assertEquals(100, CompanionValue.saleValue(companion));
 		companion.addXp(500_000L);
-		assertEquals(200, CompanionValue.saleValue(companion));
+		assertEquals(225, CompanionValue.saleValue(companion));
 
 		HatchReceipt rareReceipt = new HatchReceipt("egg-2", com.gieligotchi.model.EggTier.MEGA_RARE,
 			"olmlet", SpeciesRarity.LEGENDARY, .08, 9, Palette.OBSIDIAN, .0005, .00000444);
 		CompanionInstance exceptional = CompanionInstance.from(rareReceipt);
 		assertEquals(11_000, CompanionValue.saleValue(exceptional));
 		exceptional.addXp(40_000_000L);
-		assertEquals(19_000, CompanionValue.saleValue(exceptional));
+		assertEquals(21_000, CompanionValue.saleValue(exceptional));
+	}
+
+	@Test
+	public void oneMillionXpAddsTheSame250PointsToEveryCompanion()
+	{
+		CompanionInstance common = CompanionInstance.from(new HatchReceipt("common", EggTier.COMMON,
+			"chompy_chick", SpeciesRarity.COMMON, .65, 10, Palette.BASE, .564, .03));
+		CompanionInstance legendary = CompanionInstance.from(new HatchReceipt("legendary", EggTier.MEGA_RARE,
+			"olmlet", SpeciesRarity.LEGENDARY, .08, 9, Palette.OBSIDIAN, .0005, .00000444));
+		long commonBase = CompanionValue.saleValue(common);
+		long legendaryBase = CompanionValue.saleValue(legendary);
+		common.addXp(1_000_000L);
+		legendary.addXp(1_000_000L);
+		assertEquals(250L, CompanionValue.saleValue(common) - commonBase);
+		assertEquals(250L, CompanionValue.saleValue(legendary) - legendaryBase);
+	}
+
+	@Test
+	public void equippedToyAddsTenPercentCompanionXpWithoutRoundingLoss()
+	{
+		ProfileState state = ProfileState.fresh("toy-bonus");
+		EggState egg = state.getActiveEgg();
+		egg.addXp(egg.getTargetXp());
+		egg.seal(new HatchReceipt(egg.getInstanceId(), egg.getTier(), "chompy_chick",
+			SpeciesRarity.COMMON, .65, 10, Palette.BASE, .564, .03));
+		CompanionInstance companion = state.revealActiveEgg();
+		state.award(10L);
+		assertEquals(10L, companion.getLifetimeXp());
+		state.grantGotchiPoints(100L);
+		assertTrue(state.purchaseToy(Toy.PLAY_BALL));
+		state.award(1L);
+		state.award(9L);
+		assertEquals(21L, companion.getLifetimeXp());
 	}
 
 	@Test

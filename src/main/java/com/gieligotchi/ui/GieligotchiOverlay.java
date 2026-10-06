@@ -187,16 +187,28 @@ public class GieligotchiOverlay extends Overlay
 			String personality = companion.getPersonality() == null ? "Undiscovered" : companion.getPersonality().getDisplayName();
 			drawReadableText(graphics, "♥ " + companion.getAffectionHearts() + " " + companion.getRelationshipStage().getDisplayName()
 				+ " · " + personality, textX, textY + fontSize + 4, new Color(0xF5F1E8));
+			com.gieligotchi.model.HeartfeltWish heartfelt = companion.getHeartfeltWish();
 			com.gieligotchi.model.CompanionWish wish = companion.getWish();
-			if (wish != null)
+			if (heartfelt != null)
+			{
+				String wishLine = heartfelt.isApex() ? "✦ APEX HEARTFELT"
+					: "♥ HEARTFELT";
+				wishLine += !heartfelt.isAccepted() ? " · OFFERED"
+					: heartfelt.isComplete() ? " · READY" : " · " + (heartfelt.getProgress() / 10) + "%";
+				drawReadableText(graphics, wishLine, textX, textY + (fontSize + 4) * 2,
+					heartfelt.isApex() ? new Color(0xE9D8F4) : new Color(0xFFE09A));
+			}
+			else if (wish != null)
 			{
 				String wishLine = "Wish " + wish.getProgress() + "/" + wish.getTarget()
 					+ (wish.isComplete() ? " · READY" : "");
 				drawReadableText(graphics, wishLine, textX, textY + (fontSize + 4) * 2, new Color(0xF5F1E8));
 			}
 			Toy equipped = state.getEquippedToy();
-			drawReadableText(graphics, equipped == null ? "No toy equipped" : equipped.getDisplayName(),
+			drawReadableText(graphics, "Heartfelt fulfilled · " + companion.getHeartfeltCompletions(),
 				textX, textY + (fontSize + 4) * 3, new Color(0xDDCB95));
+			drawReadableText(graphics, equipped == null ? "No toy equipped" : equipped.getDisplayName(),
+				textX, textY + (fontSize + 4) * 4, new Color(0xC8C8C8));
 		}
 		return new Dimension(width, height);
 	}

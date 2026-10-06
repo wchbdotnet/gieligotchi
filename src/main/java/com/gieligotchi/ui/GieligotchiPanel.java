@@ -10,6 +10,8 @@ import com.gieligotchi.model.Discovery;
 import com.gieligotchi.model.EggState;
 import com.gieligotchi.model.EggTier;
 import com.gieligotchi.model.HatchReceipt;
+import com.gieligotchi.model.HeartfeltStep;
+import com.gieligotchi.model.HeartfeltWish;
 import com.gieligotchi.model.Palette;
 import com.gieligotchi.model.PetDefinition;
 import com.gieligotchi.model.ProfileState;
@@ -98,6 +100,7 @@ public class GieligotchiPanel extends PluginPanel
 	private final GieligotchiConfig config;
 	private final HatchAnimationController hatchAnimation;
 	private final CompanionEffectController effects;
+	private final CompanionLevelTracker levelTracker = new CompanionLevelTracker();
 	private final CardLayout pages = new CardLayout();
 	private final JPanel pageHost = new JPanel(pages);
 	private final JPanel home = new WidthTrackingPanel();
@@ -115,6 +118,7 @@ public class GieligotchiPanel extends PluginPanel
 	private final Map<String, JButton> navigationTabs = new HashMap<>();
 	private boolean introPlayed;
 	private boolean collectionHistoryVisible;
+	private boolean collectionMemoriesVisible;
 	private int hatchHistoryPage;
 	private int stashCompanionPage;
 	private int collectionPage;
@@ -126,12 +130,12 @@ public class GieligotchiPanel extends PluginPanel
 	private boolean shopShowsToys = true;
 	private boolean activeCompanionCardMinimized;
 	private boolean carePanelMinimized;
-	private boolean memoriesPanelMinimized;
 	private boolean megaWishMinimized;
 	private boolean stashTrayMinimized;
 	private String raritySection = "eggs";
 	private String activePage = HOME;
 	private String collectionPetId;
+	private String collectionMemoryCompanionId;
 	private Palette collectionPreviewPalette;
 	private String journeyMode;
 	private int handheldHoverButton = -1;
@@ -211,7 +215,7 @@ public class GieligotchiPanel extends PluginPanel
 			{
 				handheldHoverButton = display.buttonAt(event.getX(), event.getY());
 				display.setCursor(handheldHoverButton >= 0 ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
-				display.setToolTipText(handheldHoverButton == 0 ? "A · Care and memories"
+					display.setToolTipText(handheldHoverButton == 0 ? "A · Care"
 					: handheldHoverButton == 1 ? "B · Play"
 					: handheldHoverButton == 2 ? "C · Toy box" : null);
 				display.repaint();
@@ -414,6 +418,9 @@ public class GieligotchiPanel extends PluginPanel
 	{
 		if (!SwingUtilities.isEventDispatchThread()) { SwingUtilities.invokeLater(this::refresh); return; }
 		ProfileState state = stateService.getState();
+		CompanionEffectController.Effect levelEffect = levelTracker.observe(
+			state == null ? null : state.getActiveCompanion());
+		if (levelEffect != null) { effects.trigger(levelEffect); }
 		rebuildNavigation();
 		if (state != null && state.getActiveEgg() != null)
 		{
@@ -463,11 +470,6 @@ public class GieligotchiPanel extends PluginPanel
 			{
 				home.add(Box.createVerticalStrut(7));
 				home.add(buildJourneyPanel(state));
-				if ("care".equals(journeyMode))
-				{
-					home.add(Box.createVerticalStrut(7));
-					home.add(buildMemoriesSection(state.getActiveCompanion()));
-				}
 			}
 		}
 		if (state != null && hasStoredIncubation(state))
@@ -799,24 +801,11 @@ public class GieligotchiPanel extends PluginPanel
 		int availableWidth = Math.max(190, home.getWidth() - home.getInsets().left - home.getInsets().right);
 		if (!("care".equals(journeyMode) && carePanelMinimized))
 		{
-			int contentWidth = "care".equals(journeyMode)
-				? Math.max(150, availableWidth - 36) : Math.max(160, availableWidth - 18);
+			int contentWidth = Math.max(150, availableWidth - 18);
 			JPanel content = "play".equals(journeyMode) ? buildGamePanel()
 				: "items".equals(journeyMode) ? buildItemsPanel(state)
 				: buildCarePanel(state.getActiveCompanion(), contentWidth);
-			if ("care".equals(journeyMode))
-			{
-				JScrollPane scroll = new JScrollPane(content,
-					javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-					javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-				scroll.setBorder(BorderFactory.createEmptyBorder());
-				scroll.getViewport().setBackground(new Color(0x202224));
-				scroll.getVerticalScrollBar().setUnitIncrement(14);
-				scroll.setPreferredSize(new Dimension(availableWidth - 16,
-					Math.min(320, Math.max(80, content.getPreferredSize().height))));
-				panel.add(scroll, BorderLayout.CENTER);
-			}
-			else { panel.add(content, BorderLayout.CENTER); }
+			panel.add(content, BorderLayout.CENTER);
 		}
 		Dimension preferred = panel.getPreferredSize();
 		int minimumHeight = "items".equals(journeyMode) ? 76 : 0;
@@ -857,6 +846,13 @@ public class GieligotchiPanel extends PluginPanel
 		personalityLabel.setAlignmentX(CENTER_ALIGNMENT);
 		care.add(personalityLabel);
 		care.add(Box.createVerticalStrut(9));
+		HeartfeltWish heartfelt = companion.getHeartfeltWish();
+		if (heartfelt != null)
+		{
+			care.add(buildHeartfeltWishCard(heartfelt, contentWidth));
+		}
+		else
+		{
 		CompanionWish wish = companion.getWish();
 		JLabel wishTitle = new JLabel("CURRENT WISH");
 		wishTitle.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
@@ -901,8 +897,34 @@ public class GieligotchiPanel extends PluginPanel
 			wishActions.setAlignmentX(CENTER_ALIGNMENT);
 			care.add(wishActions);
 		}
-		care.add(Box.createVerticalStrut(10));
+		}
+		care.add(Box.createVerticalStrut(8));
+		care.add(buildMegaWishCard(companion, contentWidth));
+		if (companion.getAffectionHearts() >= 5)
+		{
+			care.add(Box.createVerticalStrut(7));
+			JPanel naming = new JPanel(new BorderLayout(4, 0));
+			naming.setOpaque(false);
+			JTextField name = new JTextField(companion.getCustomName() == null ? "" : companion.getCustomName());
+			name.setFont(FontManager.getRunescapeSmallFont().deriveFont(12f));
+			JButton save = styledButton("Name", 10f);
+			save.addActionListener(event -> stateService.renameActiveCompanion(name.getText()));
+			naming.add(name, BorderLayout.CENTER); naming.add(save, BorderLayout.EAST);
+			naming.setMaximumSize(new Dimension(Integer.MAX_VALUE, 29));
+			naming.setAlignmentX(CENTER_ALIGNMENT);
+			care.add(naming);
+		}
+		return care;
+	}
+
+	private JPanel buildMegaWishCard(CompanionInstance companion, int contentWidth)
+	{
 		SkillingGoal mega = companion.getMegaWish();
+		JPanel card = new JPanel();
+		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+		card.setBackground(new Color(0x25241F));
+		card.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(new Color(0x6A5A39)), new EmptyBorder(7, 7, 7, 7)));
 		JPanel megaHeader = new JPanel(new BorderLayout(3, 0));
 		megaHeader.setOpaque(false);
 		JLabel megaTitle = new JLabel("MEGA WISH");
@@ -920,18 +942,21 @@ public class GieligotchiPanel extends PluginPanel
 		JButton megaMinimize = styledButton(megaWishMinimized ? "+" : "−", 10f);
 		megaMinimize.setToolTipText(megaWishMinimized ? "Expand Mega Wish" : "Minimise Mega Wish");
 		megaMinimize.setMargin(new Insets(0, 0, 0, 0));
-		megaMinimize.setPreferredSize(new Dimension(22, 20));
+		Dimension minimizeSize = new Dimension(22, 20);
+		megaMinimize.setPreferredSize(minimizeSize);
+		megaMinimize.setMinimumSize(minimizeSize);
+		megaMinimize.setMaximumSize(minimizeSize);
 		megaMinimize.addActionListener(event -> { megaWishMinimized = !megaWishMinimized; refresh(); });
 		megaHeader.add(megaMinimize, BorderLayout.EAST);
 		megaHeader.setAlignmentX(CENTER_ALIGNMENT);
 		megaHeader.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
-		care.add(megaHeader);
+		card.add(megaHeader);
 		if (!megaWishMinimized && mega == null)
 		{
-			JTextArea description = fittedParagraph("Earn 100,000 non-combat skill XP or complete a skilling activity for 35,000 Bonding XP. One goal at a time; no skips.",
-				11f, contentWidth, 44);
+			JTextArea description = fittedParagraph("Earn 100,000 non-combat skill XP or complete a skilling activity for 50,000 Bonding XP. One goal at a time; no skips.",
+				11f, Math.max(120, contentWidth - 14), 44);
 			description.setAlignmentX(CENTER_ALIGNMENT);
-			care.add(description);
+			card.add(description);
 			JButton buy = styledButton("Start · 5 GPts", 11f);
 			buy.setEnabled(stateService.getState() != null && stateService.getState().getGotchiPoints() >= SkillingGoal.MEGA_PRICE);
 			buy.addActionListener(event ->
@@ -953,77 +978,282 @@ public class GieligotchiPanel extends PluginPanel
 				}
 			});
 			buy.setAlignmentX(CENTER_ALIGNMENT);
-			care.add(buy);
+			card.add(buy);
 		}
 		else if (!megaWishMinimized)
 		{
 			JTextArea progress = fittedParagraph(mega.getLabel() + " · " + format(mega.getProgress()) + " / "
-				+ format(mega.getTarget()) + " XP", 11f, contentWidth, 24);
+				+ format(mega.getTarget()) + " XP", 11f, Math.max(120, contentWidth - 14), 24);
 			progress.setAlignmentX(CENTER_ALIGNMENT);
-			care.add(progress);
-			JButton claim = styledButton(mega.isComplete() ? "Claim · 35,000 XP" : "Non-skippable", 11f);
+			card.add(progress);
+			JButton claim = styledButton(mega.isComplete() ? "Claim · 50,000 XP" : "Non-skippable", 11f);
 			claim.setEnabled(mega.isComplete());
 			claim.addActionListener(event -> stateService.claimMegaWish());
 			claim.setAlignmentX(CENTER_ALIGNMENT);
-			care.add(claim);
+			card.add(claim);
 		}
-		if (companion.getAffectionHearts() >= 5)
-		{
-			care.add(Box.createVerticalStrut(7));
-			JPanel naming = new JPanel(new BorderLayout(4, 0));
-			naming.setOpaque(false);
-			JTextField name = new JTextField(companion.getCustomName() == null ? "" : companion.getCustomName());
-			name.setFont(FontManager.getRunescapeSmallFont().deriveFont(12f));
-			JButton save = styledButton("Name", 10f);
-			save.addActionListener(event -> stateService.renameActiveCompanion(name.getText()));
-			naming.add(name, BorderLayout.CENTER); naming.add(save, BorderLayout.EAST);
-			naming.setMaximumSize(new Dimension(Integer.MAX_VALUE, 29));
-			naming.setAlignmentX(CENTER_ALIGNMENT);
-			care.add(naming);
-		}
-		return care;
+		card.setAlignmentX(CENTER_ALIGNMENT);
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+		return card;
 	}
 
-	private JPanel buildMemoriesSection(CompanionInstance companion)
+	private JPanel buildHeartfeltWishCard(HeartfeltWish wish, int contentWidth)
 	{
-		JPanel panel = new JPanel(new BorderLayout(0, 6));
-		panel.setBackground(new Color(0x202224));
-		panel.setBorder(BorderFactory.createCompoundBorder(
-			BorderFactory.createLineBorder(new Color(0x6A5A39)), new EmptyBorder(8, 8, 8, 8)));
-		JPanel header = new JPanel(new BorderLayout(4, 0));
-		header.setOpaque(false);
-		JLabel title = new JLabel(companion.isLegacy() ? "MEMORIES · LEGACY" : "MEMORIES", SwingConstants.CENTER);
-		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
-		title.setForeground(companion.isLegacy() ? new Color(0xF2C45A) : new Color(0xD7B867));
-		header.add(title, BorderLayout.CENTER);
-		JButton minimize = styledButton(memoriesPanelMinimized ? "+" : "−", 11f);
-		minimize.setToolTipText(memoriesPanelMinimized ? "Expand Memories" : "Minimise Memories");
-		minimize.setMargin(new Insets(0, 0, 0, 0));
-		minimize.setPreferredSize(new Dimension(22, 20));
-		minimize.addActionListener(event -> { memoriesPanelMinimized = !memoriesPanelMinimized; refresh(); });
-		header.add(minimize, BorderLayout.EAST);
-		panel.add(header, BorderLayout.NORTH);
-		int availableWidth = Math.max(190, home.getWidth() - home.getInsets().left - home.getInsets().right);
-		if (!memoriesPanelMinimized)
+		JPanel card = new JPanel();
+		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+		card.setBackground(wish.isApex() ? new Color(0x2B2532) : new Color(0x29261F));
+		card.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(wish.isApex() ? new Color(0xD6C3E8) : new Color(0xD7B867)),
+			new EmptyBorder(7, 7, 7, 7)));
+		JLabel heading = new JLabel(wish.isApex() ? "APEX HEARTFELT WISH" : "HEARTFELT WISH");
+		heading.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
+		heading.setForeground(wish.isApex() ? new Color(0xE9D8F4) : new Color(0xF2C45A));
+		heading.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(heading);
+		JLabel title = new JLabel(wish.getTitle());
+		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
+		title.setForeground(new Color(0xF0E8D8));
+		title.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(title);
+		JTextArea description = fittedParagraph(wish.getDescription(), 11f, contentWidth - 14, 32);
+		description.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(description);
+		String readiness = wish.getReadiness() == HeartfeltWish.Readiness.READY ? "Ready now"
+			: wish.getReadiness() == HeartfeltWish.Readiness.WITHIN_REACH ? "Within reach" : "Aspirational";
+		JTextArea requirements = fittedParagraph(readiness + " · " + wish.getRequirements(), 10f, contentWidth - 14, 26);
+		requirements.setForeground(wish.getReadiness() == HeartfeltWish.Readiness.READY
+			? new Color(0x9CCB8C) : new Color(0xE8B06A));
+		requirements.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(requirements);
+
+		if (wish.isAccepted())
 		{
-			JPanel content = buildMemoriesPanel(companion, Math.max(150, availableWidth - 36));
-			JScrollPane scroll = new JScrollPane(content,
-				javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-				javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-			scroll.setBorder(BorderFactory.createEmptyBorder());
-			scroll.getViewport().setBackground(new Color(0x202224));
-			scroll.getVerticalScrollBar().setUnitIncrement(14);
-			scroll.setPreferredSize(new Dimension(availableWidth - 16,
-				Math.min(220, Math.max(60, content.getPreferredSize().height))));
-			panel.add(scroll, BorderLayout.CENTER);
+			for (HeartfeltStep step : wish.getSteps())
+			{
+				JLabel row = new JLabel((step.isComplete() ? "✓ " : "· ") + step.getLabel() + " · "
+					+ format(step.getProgress()) + "/" + format(step.getTarget()));
+				row.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
+				row.setForeground(step.isComplete() ? new Color(0x9CCB8C) : new Color(0xD8D1C4));
+				row.setAlignmentX(LEFT_ALIGNMENT);
+				card.add(row);
+			}
+			JProgressBar progress = new JProgressBar(0, 1000);
+			progress.setValue((int) wish.getProgress());
+			progress.setStringPainted(true);
+			progress.setString((wish.getProgress() / 10) + "%");
+			progress.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
+			progress.setForeground(wish.isApex() ? new Color(0xB99AD0) : new Color(0xD7B867));
+			progress.setMaximumSize(new Dimension(Integer.MAX_VALUE, 15));
+			progress.setAlignmentX(LEFT_ALIGNMENT);
+			card.add(Box.createVerticalStrut(3));
+			card.add(progress);
 		}
-		Dimension preferred = panel.getPreferredSize();
-		Dimension fixed = new Dimension(availableWidth, preferred.height);
-		panel.setPreferredSize(fixed);
-		panel.setMinimumSize(fixed);
-		panel.setMaximumSize(fixed);
-		panel.setAlignmentX(CENTER_ALIGNMENT);
-		return panel;
+
+		JTextArea reward = fittedParagraph("Reward · " + format(wish.getRewardXp()) + " XP\n"
+			+ format(wish.getRewardPoints()) + " GPts", 10f, Math.max(120, contentWidth - 14),
+			highTextScale() ? 38 : 30);
+		reward.setFont(FontManager.getRunescapeBoldFont().deriveFont(10f));
+		reward.setForeground(new Color(0xFFE09A));
+		reward.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(Box.createVerticalStrut(4));
+		card.add(reward);
+
+		JPanel actions = new JPanel(new GridLayout(1, 2, 4, 0));
+		actions.setOpaque(false);
+		JButton primary = styledButton(!wish.isAccepted() ? "Accept"
+			: wish.isComplete() ? "Claim rewards" : "In progress", 10f);
+		primary.setEnabled(!wish.isAccepted() || wish.isComplete());
+		primary.addActionListener(event ->
+		{
+			if (!wish.isAccepted()) { stateService.acceptHeartfeltWish(); }
+			else
+			{
+				effects.trigger(CompanionEffectController.Effect.WISH);
+				stateService.claimHeartfeltWish();
+			}
+		});
+		JButton pass = styledButton(wish.isAccepted() ? "Abandon · free" : "Pass · free", 10f);
+		pass.setToolTipText("Ends this opportunity without consuming an ordinary wish skip");
+		pass.addActionListener(event -> stateService.passHeartfeltWish());
+		actions.add(primary); actions.add(pass);
+		actions.setMaximumSize(new Dimension(Integer.MAX_VALUE, 27));
+		actions.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(Box.createVerticalStrut(4));
+		card.add(actions);
+		JLabel optional = new JLabel("Optional · no time limit · free to pass");
+		optional.setFont(FontManager.getRunescapeSmallFont().deriveFont(9f));
+		optional.setForeground(new Color(0xAFA795));
+		optional.setAlignmentX(LEFT_ALIGNMENT);
+		card.add(optional);
+		card.setAlignmentX(CENTER_ALIGNMENT);
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+		return card;
+	}
+
+	private JPanel buildCollectionMemories(ProfileState state)
+	{
+		JPanel section = new JPanel();
+		section.setOpaque(false);
+		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
+		CompanionInstance companion = findOwnedCompanion(state, collectionMemoryCompanionId);
+		if (companion != null)
+		{
+			JButton back = styledButton("‹ All companion memories", 11f);
+			back.setAlignmentX(LEFT_ALIGNMENT);
+			back.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+			back.addActionListener(event ->
+			{
+				collectionMemoryCompanionId = null;
+				careMemoryPage = 0;
+				rebuildCollection(stateService.getState());
+			});
+			section.add(back);
+			section.add(Box.createVerticalStrut(7));
+			section.add(buildCompanionMemoryJournal(companion));
+			return section;
+		}
+		collectionMemoryCompanionId = null;
+		JLabel heading = new JLabel("COMPANION MEMORIES");
+		heading.setFont(FontManager.getRunescapeBoldFont().deriveFont(14f));
+		heading.setForeground(new Color(0xD7B867));
+		heading.setAlignmentX(LEFT_ALIGNMENT);
+		section.add(heading);
+		JTextArea intro = fittedParagraph(
+			"Choose an active or stashed companion to revisit its individual journey.", 11f, 190, 34);
+		intro.setForeground(new Color(0xB8B2A6));
+		intro.setAlignmentX(LEFT_ALIGNMENT);
+		section.add(intro);
+		section.add(Box.createVerticalStrut(6));
+		boolean any = false;
+		if (state != null && state.getActiveCompanion() != null)
+		{
+			section.add(buildMemoryCompanionRow(state.getActiveCompanion(), true));
+			any = true;
+		}
+		if (state != null)
+		{
+			for (CompanionInstance stored : state.getStashedCompanions())
+			{
+				if (stored == null) { continue; }
+				if (any) { section.add(Box.createVerticalStrut(5)); }
+				section.add(buildMemoryCompanionRow(stored, false));
+				any = true;
+			}
+		}
+		if (!any)
+		{
+			JTextArea empty = fittedParagraph("Hatch a companion to begin its story.", 11f, 190, 24);
+			empty.setForeground(new Color(0x999999));
+			section.add(empty);
+		}
+		return section;
+	}
+
+	private JPanel buildMemoryCompanionRow(CompanionInstance companion, boolean active)
+	{
+		PetDefinition pet = catalogue.find(companion.getSpeciesId());
+		String name = companion.getDisplayName(pet == null ? "Companion" : pet.getName());
+		JPanel row = new JPanel(new BorderLayout(7, 0));
+		row.setBackground(new Color(0x202224));
+		row.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(active ? new Color(0xD7B867) : new Color(0x565044)),
+			new EmptyBorder(6, 6, 6, 6)));
+		BufferedImage sprite = SpriteAssets.companion(companion);
+		JLabel portrait = new JLabel(sprite == null ? null
+			: new ImageIcon(SpriteAssets.resizeNearestShadowedOpaque(sprite, 46, 46)));
+		portrait.setPreferredSize(new Dimension(48, 48));
+		row.add(portrait, BorderLayout.WEST);
+		JPanel copy = new JPanel();
+		copy.setOpaque(false);
+		copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
+		JLabel title = new JLabel(name.toUpperCase(Locale.ENGLISH));
+		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
+		title.setForeground(new Color(0xF2C45A));
+		copy.add(title);
+		JTextArea detail = fittedParagraph((active ? "Active · " : "Stashed · ")
+			+ companion.getMemories().size() + " memories · " + companion.getHeartfeltCompletions()
+			+ " heartfelt", 10f, 110, 28);
+		detail.setForeground(new Color(0xBEB28C));
+		copy.add(detail);
+		row.add(copy, BorderLayout.CENTER);
+		JButton open = styledButton("Read", 10f);
+		open.setPreferredSize(new Dimension(42, 26));
+		open.addActionListener(event ->
+		{
+			collectionMemoryCompanionId = companion.getInstanceId();
+			careMemoryPage = 0;
+			rebuildCollection(stateService.getState());
+		});
+		row.add(open, BorderLayout.EAST);
+		row.setAlignmentX(LEFT_ALIGNMENT);
+		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
+		return row;
+	}
+
+	private CompanionInstance findOwnedCompanion(ProfileState state, String instanceId)
+	{
+		if (state == null || instanceId == null) { return null; }
+		if (state.getActiveCompanion() != null
+			&& instanceId.equals(state.getActiveCompanion().getInstanceId())) { return state.getActiveCompanion(); }
+		for (CompanionInstance companion : state.getStashedCompanions())
+		{ if (companion != null && instanceId.equals(companion.getInstanceId())) { return companion; } }
+		return null;
+	}
+
+	private JPanel buildCompanionMemoryJournal(CompanionInstance companion)
+	{
+		JPanel journal = new JPanel();
+		journal.setOpaque(false);
+		journal.setLayout(new BoxLayout(journal, BoxLayout.Y_AXIS));
+		if (companion == null)
+		{
+			JTextArea empty = scalableParagraph(
+				"This companion is no longer available.", 13f, 190, 48);
+			empty.setForeground(new Color(0xA8A8A8));
+			journal.add(empty);
+			return journal;
+		}
+
+		PetDefinition pet = catalogue.find(companion.getSpeciesId());
+		String speciesName = pet == null ? "Companion" : pet.getName();
+		String name = companion.getDisplayName(speciesName);
+		JPanel identity = new JPanel(new BorderLayout(9, 0));
+		identity.setBackground(new Color(0x202224));
+		Color border = companion.isLegacy() ? new Color(0xF2C45A)
+			: pet == null ? new Color(0x6A5A39) : RarityColours.species(pet.getRarity());
+		identity.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(border), new EmptyBorder(8, 8, 8, 8)));
+		BufferedImage sprite = SpriteAssets.companion(companion);
+		if (sprite != null)
+		{
+			JLabel portrait = new JLabel(new ImageIcon(SpriteAssets.resizeNearestShadowedOpaque(sprite, 54, 54)));
+			portrait.setPreferredSize(new Dimension(58, 58));
+			identity.add(portrait, BorderLayout.WEST);
+		}
+		JPanel details = new JPanel();
+		details.setOpaque(false);
+		details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
+		JLabel petName = new JLabel(name.toUpperCase(Locale.ENGLISH));
+		petName.setFont(FontManager.getRunescapeBoldFont().deriveFont(14f));
+		petName.setForeground(new Color(0xF2C45A));
+		details.add(petName);
+		JTextArea chapter = fittedParagraph((companion.isLegacy() ? "Legacy companion · " : "")
+			+ companion.getRelationshipStage().getDisplayName() + " · Level " + LevelCurve.levelFor(companion),
+			11f, 130, 20);
+		chapter.setForeground(new Color(0xD8D1C4));
+		details.add(chapter);
+		JTextArea count = fittedParagraph(companion.getMemories().size() + " journal "
+			+ (companion.getMemories().size() == 1 ? "entry" : "entries") + "\n"
+			+ companion.getHeartfeltCompletions() + " heartfelt wishes fulfilled", 10f, 130, 32);
+		count.setForeground(new Color(0xBEB28C));
+		details.add(count);
+		identity.add(details, BorderLayout.CENTER);
+		identity.setAlignmentX(LEFT_ALIGNMENT);
+		identity.setMaximumSize(new Dimension(Integer.MAX_VALUE, 96));
+		journal.add(identity);
+		journal.add(Box.createVerticalStrut(8));
+		journal.add(buildMemoriesPanel(companion, 190));
+		return journal;
 	}
 
 	private JPanel buildMemoriesPanel(CompanionInstance companion, int contentWidth)
@@ -1035,12 +1265,13 @@ public class GieligotchiPanel extends PluginPanel
 		memories.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 		if (companion.getFavoriteSkill() != null)
 		{
-			JLabel favourite = new JLabel("Favourite skill: " + companion.getFavoriteSkill());
+			JLabel favourite = new JLabel("Favourite skill · " + companion.getFavoriteSkill());
 			favourite.setFont(FontManager.getRunescapeSmallFont().deriveFont(11f));
 			favourite.setForeground(new Color(0xBEB28C));
 			favourite.setMaximumSize(new Dimension(Integer.MAX_VALUE, 17));
-			favourite.setAlignmentX(CENTER_ALIGNMENT);
+			favourite.setAlignmentX(LEFT_ALIGNMENT);
 			memories.add(favourite);
+			memories.add(Box.createVerticalStrut(5));
 		}
 		int memoryCount = companion.getMemories().size();
 		if (memoryCount == 0)
@@ -1051,23 +1282,43 @@ public class GieligotchiPanel extends PluginPanel
 			emptyMemories.setAlignmentX(CENTER_ALIGNMENT);
 			memories.add(emptyMemories);
 		}
-		int memoryPageCount = Math.max(1, (memoryCount + 1) / 2);
+		int memoriesPerPage = 4;
+		int memoryPageCount = Math.max(1, (memoryCount + memoriesPerPage - 1) / memoriesPerPage);
 		careMemoryPage = Math.max(0, Math.min(careMemoryPage, memoryPageCount - 1));
-		int newestMemory = memoryCount - 1 - careMemoryPage * 2;
-		int oldestMemory = Math.max(0, newestMemory - 1);
+		int newestMemory = memoryCount - 1 - careMemoryPage * memoriesPerPage;
+		int oldestMemory = Math.max(0, newestMemory - memoriesPerPage + 1);
 		for (int i = newestMemory; i >= oldestMemory && i >= 0; i--)
 		{
 			MemoryEntry memory = companion.getMemories().get(i);
-			JTextArea line = fittedParagraph("• " + memory.getTitle() + " — " + memory.getDetail(),
-				11f, contentWidth, highTextScale() ? 48 : 36);
-			line.setAlignmentX(CENTER_ALIGNMENT);
-			line.setToolTipText(new SimpleDateFormat("dd MMM yyyy HH:mm", Locale.UK).format(new Date(memory.getCreatedAt())));
-			memories.add(line);
+			JPanel chapter = new JPanel();
+			chapter.setLayout(new BoxLayout(chapter, BoxLayout.Y_AXIS));
+			chapter.setBackground(new Color(0x202224));
+			chapter.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(new Color(0x565044)), new EmptyBorder(7, 8, 7, 8)));
+			JLabel chapterTitle = new JLabel(memory.getTitle().toUpperCase(Locale.ENGLISH));
+			chapterTitle.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
+			chapterTitle.setForeground(new Color(0xD7B867));
+			chapterTitle.setAlignmentX(LEFT_ALIGNMENT);
+			chapter.add(chapterTitle);
+			JTextArea detail = fittedParagraph(memory.getDetail(), 11f, Math.max(120, contentWidth - 16),
+				highTextScale() ? 42 : 32);
+			detail.setAlignmentX(LEFT_ALIGNMENT);
+			chapter.add(detail);
+			JLabel date = new JLabel(new SimpleDateFormat("dd MMM yyyy · HH:mm", Locale.UK)
+				.format(new Date(memory.getCreatedAt())));
+			date.setFont(FontManager.getRunescapeSmallFont().deriveFont(9f));
+			date.setForeground(new Color(0x928B7D));
+			date.setAlignmentX(LEFT_ALIGNMENT);
+			chapter.add(date);
+			chapter.setAlignmentX(LEFT_ALIGNMENT);
+			chapter.setMaximumSize(new Dimension(Integer.MAX_VALUE, highTextScale() ? 94 : 80));
+			memories.add(chapter);
+			if (i > oldestMemory) { memories.add(Box.createVerticalStrut(5)); }
 		}
 		if (memoryPageCount > 1)
 		{
 			memories.add(Box.createVerticalStrut(3));
-			JPanel memoryControls = pageControls("Memories " + (careMemoryPage + 1) + " / " + memoryPageCount,
+			JPanel memoryControls = pageControls("Chapter " + (careMemoryPage + 1) + " / " + memoryPageCount,
 				careMemoryPage > 0, careMemoryPage + 1 < memoryPageCount,
 				() -> { careMemoryPage--; refresh(); }, () -> { careMemoryPage++; refresh(); });
 			memoryControls.setAlignmentX(CENTER_ALIGNMENT);
@@ -1166,6 +1417,14 @@ public class GieligotchiPanel extends PluginPanel
 		equippedLabel.setForeground(new Color(0xC9A95F));
 		equippedLabel.setAlignmentX(CENTER_ALIGNMENT);
 		items.add(equippedLabel);
+		if (equipped != null)
+		{
+			JLabel bonus = new JLabel("+10% Bonding XP while equipped", SwingConstants.CENTER);
+			bonus.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
+			bonus.setForeground(new Color(0x9CCB8C));
+			bonus.setAlignmentX(CENTER_ALIGNMENT);
+			items.add(bonus);
+		}
 		items.add(Box.createVerticalStrut(5));
 		if (state.getOwnedToyIds().isEmpty())
 		{
@@ -1464,28 +1723,45 @@ public class GieligotchiPanel extends PluginPanel
 		progress.setAlignmentX(LEFT_ALIGNMENT);
 		header.add(progress);
 		header.add(Box.createVerticalStrut(7));
-		JPanel modes = new JPanel(new GridLayout(1, 2, 4, 0));
+		JPanel modes = new JPanel(new GridLayout(1, 3, 4, 0));
 		modes.setOpaque(false);
-		JButton companions = styledButton("Companions", 11f);
-		companions.setEnabled(collectionHistoryVisible || collectionPetId != null);
+		JButton companions = styledButton("Pets", 11f);
+		companions.setEnabled(collectionHistoryVisible || collectionMemoriesVisible || collectionPetId != null);
 		companions.addActionListener(event ->
 		{
 			collectionHistoryVisible = false;
+			collectionMemoriesVisible = false;
 			collectionPetId = null;
+			collectionMemoryCompanionId = null;
 			collectionPreviewPalette = null;
 			rebuildCollection(stateService.getState());
 		});
-		JButton history = styledButton("Hatch History", 11f);
+		JButton memoryTab = styledButton("Memories", 11f);
+		memoryTab.setEnabled(!collectionMemoriesVisible || collectionMemoryCompanionId != null);
+		memoryTab.addActionListener(event ->
+		{
+			collectionHistoryVisible = false;
+			collectionMemoriesVisible = true;
+			collectionPetId = null;
+			collectionMemoryCompanionId = null;
+			collectionPreviewPalette = null;
+			careMemoryPage = 0;
+			rebuildCollection(stateService.getState());
+		});
+		JButton history = styledButton("Hatches", 11f);
 		history.setEnabled(!collectionHistoryVisible);
 		history.addActionListener(event ->
 		{
 			collectionHistoryVisible = true;
+			collectionMemoriesVisible = false;
 			hatchHistoryPage = 0;
 			collectionPetId = null;
+			collectionMemoryCompanionId = null;
 			collectionPreviewPalette = null;
 			rebuildCollection(stateService.getState());
 		});
 		modes.add(companions);
+		modes.add(memoryTab);
 		modes.add(history);
 		modes.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 		modes.setAlignmentX(LEFT_ALIGNMENT);
@@ -1493,6 +1769,7 @@ public class GieligotchiPanel extends PluginPanel
 		collection.add(header, BorderLayout.NORTH);
 
 		if (collectionHistoryVisible) { collection.add(buildHatchHistory(state), BorderLayout.CENTER); }
+		else if (collectionMemoriesVisible) { collection.add(buildCollectionMemories(state), BorderLayout.CENTER); }
 		else if (collectionPetId != null)
 		{
 			PetDefinition selected = catalogue.find(collectionPetId);
@@ -1725,7 +2002,7 @@ public class GieligotchiPanel extends PluginPanel
 		heading.setAlignmentX(LEFT_ALIGNMENT);
 		shop.add(heading);
 		shop.add(Box.createVerticalStrut(4));
-		JTextArea intro = paragraph("Unlock permanent backdrops and toys with Gotchi Points. Toys add companion reactions and memories, never gameplay power.", 14f);
+		JTextArea intro = paragraph("Unlock permanent backdrops and toys with Gotchi Points. An equipped toy adds companion reactions, memories and a small 10% Bonding XP boost.", 14f);
 		intro.setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
 		shop.add(intro);
 		if (state != null && !state.hasEggOrCompanion())
@@ -1974,9 +2251,13 @@ public class GieligotchiPanel extends PluginPanel
 			{"2 · PLAY OLD SCHOOL", "Train skills, fight NPCs, complete quests and take on larger challenges. Every style of play can help your active egg or companion grow."},
 			{"3 · WATCH IT HATCH", "The overlay and handheld show progress. When an egg is ready, interact with it to reveal its species and colour."},
 			{"4 · RAISE YOUR COMPANION", "Keep earning Bonding XP after hatching to increase its level. Meaningful milestones and tougher adventures tend to feel more rewarding."},
-			{"5 · CARE, PLAY & ITEMS", "Use A for care and memories, B for a quick game and C for the Toy Box. Wishes grow with your companion and reward Bonding XP, affection, personality and memories. You begin with three wish skips, which replenish through play up to the same cap."},
-			{"6 · BUILD A COLLECTION", "Stash companions, collect colours, unlock scenes and review Hatch History. Selling is permanent, but the discovery remains recorded."},
-			{"7 · MAKE IT YOURS", "Rename close companions, choose a backdrop and equip a favourite toy. Overlay display options are available in the plugin settings."},
+			{"5 · CARE, PLAY & ITEMS", "Use A for Care, B for a quick game and C for the Toy Box. Wishes grow with your companion and reward Bonding XP, affection, personality and memories. You begin with three wish skips, which replenish through play up to the same cap."},
+			{"PET MEMORIES", "Open Collection > Memories and choose any active or stashed companion to read its own journal. Milestones, discoveries and Heartfelt completions stay with that unique pet."},
+			{"HEARTFELT WISHES", "About once in every five wish generations, your companion may suggest a particular Gielinor adventure. These can involve named places, crafting chains, bosses or fresh drops. Accept it for much larger Bonding XP and Gotchi Point rewards, or pass for free."},
+			{"READY, STRETCH OR ASPIRATIONAL", "Heartfelt Wishes consider your account progress but may ask for a nearby unlock—or occasionally something distant. Requirements and rewards are shown before acceptance. There is no time limit, and an accepted wish can still be abandoned for free."},
+			{"APEX HEARTFELT WISHES", "A very small set of personal raid-unique hunts are Apex wishes. They are the sole tasks permitted to award up to 1,000 Gotchi Points. Another player's raid reward never completes yours."},
+			{"6 · BUILD A COLLECTION", "Stash companions, collect colours, revisit each pet's Memories and review Hatch History. Selling is permanent, but the discovery remains recorded."},
+			{"7 · MAKE IT YOURS", "Rename close companions, choose a backdrop and equip a favourite toy. An equipped toy gives that active companion 10% more Bonding XP. Overlay display options are available in the plugin settings."},
 			{"8 · LONG-TERM GOALS", "High-level and deeply bonded companions gain special recognition. Some rewards, memories and presentation details are best discovered through play."}
 		};
 		addPagedCards(guide, entries, guidePage, page -> { guidePage = page; rebuildGuide(); });
@@ -1997,9 +2278,10 @@ public class GieligotchiPanel extends PluginPanel
 			{"EGGS & HATCHES", "Egg tiers influence the kinds of outcomes you may discover. A ready egg must be hatched before that active journey can continue."},
 			{"COSMETICS, NOT POWER", "Colours, toys, backdrops, affection and personality personalise your companion. They do not change Old School combat or skilling."},
 			{"STASH & COLLECTION", "Stash space is limited and paginated. Collection entries and hatch records remain permanent discoveries even if a companion later leaves."},
-			{"SELLING IS FINAL", "Selling returns Gotchi Points but permanently removes that companion. The interface asks for confirmation; this cannot be undone."},
+			{"SELLING IS FINAL", "Selling returns Gotchi Points but permanently removes that companion. Value combines species, colour and lifetime Bonding XP; every million XP adds 250 GPts. The interface asks for confirmation."},
 			{"CHARACTER SAVES", "Progress belongs to each OSRS character. Sign into RuneLite for automatic sync, or use Guide > Save & sync to transfer a full save. Local files and recovery backups remain on this device."},
 			{"PLAY YOUR WAY", "There is no required training method. Early journeys should move steadily, while prestigious eggs and max-level companions are longer-term goals."},
+			{"WISHES STAY OPTIONAL", "Normal wishes use replenishing skips. Heartfelt Wishes can always be passed or abandoned for free. Passing ends that opportunity rather than rolling repeatedly for a preferred reward."},
 			{"KEEP SOME MYSTERY", "Exact reward formulas and the rarest combinations are not listed. The Rarities page offers broad guidance without spoiling every outcome."}
 		};
 		addPagedCards(rules, entries, rulesPage, page -> { rulesPage = page; rebuildRules(); });
@@ -2233,7 +2515,7 @@ public class GieligotchiPanel extends PluginPanel
 			setLayout(null);
 			setPreferredSize(new Dimension(216, 225));
 			setMaximumSize(new Dimension(216, 225));
-			String[] tips = {"A · Care and memories", "B · Play", "C · Toy box"};
+			String[] tips = {"A · Care", "B · Play", "C · Toy box"};
 			for (int i = 0; i < controls.length; i++)
 			{
 				final int index = i;
