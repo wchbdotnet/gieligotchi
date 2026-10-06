@@ -8,7 +8,7 @@ public class SkillingGoal
 	public static final int[] EGG_TARGETS = {5_000, 10_000, 25_000, 50_000, 100_000};
 	public static final long[] EGG_REWARDS = {1_500, 3_500, 10_000, 22_500, 50_000};
 	public static final int MEGA_TARGET = 100_000;
-	public static final long MEGA_REWARD = 35_000;
+	public static final long MEGA_REWARD = 50_000;
 	public static final long MEGA_PRICE = 5;
 	public static final Skill[] SKILLS = {
 		Skill.AGILITY, Skill.CONSTRUCTION, Skill.COOKING, Skill.CRAFTING,

@@ -35,6 +35,7 @@ public class ProfileState
 	@SerializedName(value = "gotchiPoints", alternate = {"eggshells"})
 	private long gotchiPoints;
 	private long companionshipRemainder;
+	private int toyBondingRemainder;
 	// Unfinished incubation work and unused bonuses belong to the egg tier, not an egg instance.
 	private Map<String, List<SkillingGoal>> carriedIncubationGoals = new LinkedHashMap<>();
 	private Map<String, Long> incubationCredits = new LinkedHashMap<>();
@@ -104,6 +105,7 @@ public class ProfileState
 		if (skillRemainders == null) { skillRemainders = new LinkedHashMap<>(); }
 		if (carriedIncubationGoals == null) { carriedIncubationGoals = new LinkedHashMap<>(); }
 		if (incubationCredits == null) { incubationCredits = new LinkedHashMap<>(); }
+		toyBondingRemainder = Math.max(0, Math.min(9, toyBondingRemainder));
 		if (activeEgg != null)
 		{
 			if (activeEgg.isStarter()) { activeEgg.retargetPreservingXp(EggState.STARTER_HATCH_XP); }
@@ -270,8 +272,15 @@ public class ProfileState
 		if (activeEgg != null && !activeEgg.isReady()) { activeEgg.addXp(bondingXp); }
 		else if (activeCompanion != null)
 		{
-			activeCompanion.addXp(bondingXp);
-			companionshipRemainder += bondingXp;
+			long appliedXp = bondingXp;
+			if (getEquippedToy() != null)
+			{
+				long fractionalTenths = bondingXp % 10L + toyBondingRemainder;
+				appliedXp += bondingXp / 10L + fractionalTenths / 10L;
+				toyBondingRemainder = (int) (fractionalTenths % 10L);
+			}
+			activeCompanion.addXp(appliedXp);
+			companionshipRemainder += appliedXp;
 			gotchiPoints += companionshipRemainder / 10_000L;
 			companionshipRemainder %= 10_000L;
 		}

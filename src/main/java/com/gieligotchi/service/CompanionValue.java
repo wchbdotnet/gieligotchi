@@ -5,7 +5,8 @@ import com.gieligotchi.model.CompanionInstance;
 public final class CompanionValue
 {
 	public static final long MINIMUM_VALUE = 100L;
-	public static final long XP_PER_POINT_ON_SALE = 5_000L;
+	/** Every one million lifetime Bonding XP adds 250 GPts, independent of rarity. */
+	public static final long XP_PER_POINT_ON_SALE = 4_000L;
 
 	private CompanionValue() {}
 

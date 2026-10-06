@@ -30,6 +30,8 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Hitsplat;
+import net.runelite.api.InventoryID;
+import net.runelite.api.Item;
 import net.runelite.api.ItemID;
 import net.runelite.api.NPC;
 import net.runelite.api.Skill;
@@ -40,6 +42,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.InteractingChanged;
+import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
@@ -88,6 +91,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	private int lastSlayerCount = -1;
 	private final Map<Integer, Integer> engagedNpcTicks = new HashMap<>();
 	private final Map<String, Long> recentActivityAwards = new HashMap<>();
+	private final Map<Integer, Integer> inventorySnapshot = new HashMap<>();
+	private boolean inventorySnapshotReady;
 	private final Runnable profileListener = this::onProfileChanged;
 	private Point overlayDragOffset;
 	private boolean overlayDragged;
@@ -180,6 +185,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		overlayDragged = false;
 		engagedNpcTicks.clear();
 		recentActivityAwards.clear();
+		inventorySnapshot.clear();
+		inventorySnapshotReady = false;
 		log.info("Gieligotchi stopped");
 	}
 
@@ -251,6 +258,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			lastSlayerCount = -1;
 			engagedNpcTicks.clear();
 			recentActivityAwards.clear();
+			inventorySnapshot.clear();
+			inventorySnapshotReady = false;
 			hatchAnimation.reset();
 		}
 	}
@@ -259,8 +268,53 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	public void onStatChanged(StatChanged event)
 	{
 		if (!skillBaselinesSynchronized) { return; }
-		long award = stateService.observeSkill(event.getSkill(), event.getXp(), client.getOverallExperience());
+		net.runelite.api.coords.WorldPoint location = client.getLocalPlayer() == null ? null
+			: client.getLocalPlayer().getWorldLocation();
+		long award = stateService.observeSkill(event.getSkill(), event.getXp(), client.getOverallExperience(),
+			location == null ? -1 : location.getX(), location == null ? -1 : location.getY(),
+			location == null ? -1 : location.getPlane());
 		if (award > 0) { notifyIfReady(); }
+	}
+
+	@Subscribe
+	public void onItemContainerChanged(ItemContainerChanged event)
+	{
+		if (event == null || event.getItemContainer() == null
+			|| event.getContainerId() != InventoryID.INVENTORY.getId()) { return; }
+		Map<Integer, Integer> current = new HashMap<>();
+		for (Item item : event.getItemContainer().getItems())
+		{
+			if (item != null && item.getId() >= 0 && item.getQuantity() > 0)
+			{ current.merge(item.getId(), item.getQuantity(), Integer::sum); }
+		}
+		if (!inventorySnapshotReady)
+		{
+			inventorySnapshot.putAll(current);
+			inventorySnapshotReady = true;
+			return;
+		}
+		// Moving an existing item out of the bank is not a fresh acquisition.
+		net.runelite.api.widgets.Widget bankItems = client.getWidget(12, 13);
+		if (bankItems != null && !bankItems.isHidden())
+		{
+			inventorySnapshot.clear();
+			inventorySnapshot.putAll(current);
+			return;
+		}
+		net.runelite.api.coords.WorldPoint location = client.getLocalPlayer() == null ? null
+			: client.getLocalPlayer().getWorldLocation();
+		for (Map.Entry<Integer, Integer> entry : current.entrySet())
+		{
+			int gained = entry.getValue() - inventorySnapshot.getOrDefault(entry.getKey(), 0);
+			if (gained > 0)
+			{
+				stateService.recordHeartfeltItem(entry.getKey(), gained,
+					location == null ? -1 : location.getX(), location == null ? -1 : location.getY(),
+					location == null ? -1 : location.getPlane());
+			}
+		}
+		inventorySnapshot.clear();
+		inventorySnapshot.putAll(current);
 	}
 
 	@Subscribe

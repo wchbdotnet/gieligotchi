@@ -49,8 +49,10 @@ A Tamagotchi-style companion without the chores. Nothing decays when you step aw
 
 - 71 species, 11 colours and 781 possible combinations
 - Individual personalities, wishes and affection
-- A persistent memory book and history of every companion raised
+- Account-aware Heartfelt Wishes with specific Gielinor tasks, substantial rewards and free passing
+- Per-companion memory journals available through Collection > Memories
 - Animated egg hatching, skilling incubation goals and cosmetic rewards
+- A 10% Bonding XP boost while a toy is equipped, plus companion level-up celebrations
 - Compact sidebar, movable overlay and optional character-save sync
 
 ## Familiar places. Smaller adventures.
@@ -78,5 +80,7 @@ Visit **[gieligotchi.com](https://gieligotchi.com/)** for the full companion sho
 Companion and backdrop artwork was created specifically for Gieligotchi with AI-assisted tools. Our goal is to replace all AI-assisted imagery with commissioned work by OSRS artists.
 
 The idea of rewarding ordinary play with a companion collection was inspired by [OSRS TCG](https://github.com/Azderi/osrs-tcg) by Az. Gieligotchi is independently designed and implemented and does not use OSRS TCG code or artwork.
+
+Heartfelt Wish collection-hunt groups and prerequisite ideas were adapted from [Xtreme Tasker](https://github.com/AmTrollin/xtreme-tasker-osrs) by AmTrollin under its BSD 2-Clause licence. Gieligotchi uses its own task selection, progression, reward and interface systems.
 
 Gieligotchi is an independent community project and is not affiliated with or endorsed by Jagex or RuneLite. Old School RuneScape and related assets belong to their respective owners. Released under the [BSD 2-Clause License](LICENSE).
