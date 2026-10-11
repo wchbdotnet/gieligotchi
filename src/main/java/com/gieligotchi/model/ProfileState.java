@@ -20,6 +20,7 @@ public class ProfileState
 	private EggState activeEgg;
 	private CompanionInstance activeCompanion;
 	private List<EggState> stashedEggs = new ArrayList<>();
+	private List<EggState> secretEggs = new ArrayList<>();
 	private List<CompanionInstance> stashedCompanions = new ArrayList<>();
 	private List<HatchReceipt> hatchHistory = new ArrayList<>();
 	private List<String> ownedBackdropIds = new ArrayList<>();
@@ -60,6 +61,7 @@ public class ProfileState
 	public EggState getActiveEgg() { return activeEgg; }
 	public CompanionInstance getActiveCompanion() { return activeCompanion; }
 	public List<EggState> getStashedEggs() { return stashedEggs; }
+	public List<EggState> getSecretEggs() { return secretEggs; }
 	public List<CompanionInstance> getStashedCompanions() { return stashedCompanions; }
 	public List<HatchReceipt> getHatchHistory() { return hatchHistory; }
 	public List<String> getOwnedBackdropIds() { return ownedBackdropIds; }
@@ -90,6 +92,7 @@ public class ProfileState
 	public void repair()
 	{
 		if (stashedEggs == null) { stashedEggs = new ArrayList<>(); }
+		if (secretEggs == null) { secretEggs = new ArrayList<>(); }
 		if (stashedCompanions == null) { stashedCompanions = new ArrayList<>(); }
 		if (hatchHistory == null) { hatchHistory = new ArrayList<>(); }
 		if (ownedBackdropIds == null) { ownedBackdropIds = new ArrayList<>(); }
@@ -109,6 +112,7 @@ public class ProfileState
 		if (activeEgg != null)
 		{
 			if (activeEgg.isStarter()) { activeEgg.retargetPreservingXp(EggState.STARTER_HATCH_XP); }
+			else if (activeEgg.isSecret()) { activeEgg.rebalanceTarget(SecretEggType.HATCH_XP); }
 			else { activeEgg.rebalanceTarget(activeEgg.getTier().getHatchXp()); }
 		}
 		if (activeCompanion != null) { activeCompanion.repair(); }
@@ -118,6 +122,10 @@ public class ProfileState
 			if (egg == null) { continue; }
 			if (egg.isStarter()) { egg.retargetPreservingXp(EggState.STARTER_HATCH_XP); }
 			else { egg.rebalanceTarget(egg.getTier().getHatchXp()); }
+		}
+		for (EggState egg : secretEggs)
+		{
+			if (egg != null && egg.isSecret()) { egg.rebalanceTarget(SecretEggType.HATCH_XP); }
 		}
 		settleCompletedIncubationGoals();
 		applyIncubationCreditToActiveEgg();
@@ -173,6 +181,13 @@ public class ProfileState
 			creditIncubationBonus(activeEgg.getTier(), activeEgg.claimSkillingGoal());
 		}
 		for (EggState egg : stashedEggs)
+		{
+			if (egg != null && egg.getSkillingGoal() != null && egg.getSkillingGoal().isComplete())
+			{
+				creditIncubationBonus(egg.getTier(), egg.claimSkillingGoal());
+			}
+		}
+		for (EggState egg : secretEggs)
 		{
 			if (egg != null && egg.getSkillingGoal() != null && egg.getSkillingGoal().isComplete())
 			{
@@ -258,7 +273,7 @@ public class ProfileState
 	public boolean hasEggOrCompanion()
 	{
 		return activeEgg != null || activeCompanion != null
-			|| !stashedEggs.isEmpty() || !stashedCompanions.isEmpty();
+			|| !stashedEggs.isEmpty() || !secretEggs.isEmpty() || !stashedCompanions.isEmpty();
 	}
 
 	private boolean canReceiveBondingXp()
@@ -311,7 +326,7 @@ public class ProfileState
 	{
 		if (activeEgg != null)
 		{
-			stashedEggs.add(activeEgg);
+			(activeEgg.isSecret() ? secretEggs : stashedEggs).add(activeEgg);
 			activeEgg = null;
 			return true;
 		}
@@ -330,6 +345,29 @@ public class ProfileState
 		activeEgg = stashedEggs.remove(index);
 		applyIncubationCreditToActiveEgg();
 		return true;
+	}
+
+	public boolean activateSecretEgg(int index)
+	{
+		if (activeEgg != null || activeCompanion != null || index < 0 || index >= secretEggs.size()) { return false; }
+		activeEgg = secretEggs.remove(index);
+		applyIncubationCreditToActiveEgg();
+		return true;
+	}
+
+	public EggState grantSecretEgg(SecretEggType type)
+	{
+		EggState egg = EggState.secret(type);
+		secretEggs.add(egg);
+		return egg;
+	}
+
+	public EggState grantRegularEgg(EggTier tier)
+	{
+		if (tier == null) { return null; }
+		EggState egg = EggState.purchased(tier);
+		stashedEggs.add(egg);
+		return egg;
 	}
 
 	public boolean activateCompanion(int index)

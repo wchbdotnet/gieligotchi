@@ -8,6 +8,7 @@ import com.gieligotchi.model.SpeciesRarity;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -22,6 +23,7 @@ public class HatchService
 
 	public HatchReceipt roll(EggState egg)
 	{
+		if (egg.isSecret()) { return rollSecret(egg); }
 		double[] odds = egg.getSpeciesOdds();
 		SpeciesRarity rarity = SpeciesRarity.values()[weightedIndex(odds)];
 		Map<SpeciesRarity, List<PetDefinition>> pools = catalogue.byRarity();
@@ -33,6 +35,21 @@ public class HatchService
 		return new HatchReceipt(egg.getInstanceId(), egg.getTier(), pet.getId(), rarity,
 			tierChance, pool.size(), palette, paletteChance,
 			tierChance * (1d / pool.size()) * paletteChance);
+	}
+
+	private HatchReceipt rollSecret(EggState egg)
+	{
+		List<PetDefinition> pool = catalogue.all().stream()
+			.filter(pet -> egg.getSecretType().allows(pet.getId()))
+			.collect(Collectors.toList());
+		if (pool.isEmpty()) { throw new IllegalStateException("No pets configured for " + egg.getSecretType()); }
+		PetDefinition pet = pool.get(random.nextInt(pool.size()));
+		Palette palette = Palette.values()[weightedIndex(paletteWeights())];
+		double speciesChance = 1d / pool.size();
+		double paletteChance = palette.getChancePercent() / 100d;
+		return new HatchReceipt(egg.getInstanceId(), egg.getTier(), egg.getSecretType(),
+			pet.getId(), pet.getRarity(), speciesChance, pool.size(), palette,
+			paletteChance, speciesChance * paletteChance);
 	}
 
 	private int weightedIndex(double[] weights)

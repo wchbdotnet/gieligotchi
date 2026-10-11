@@ -9,6 +9,7 @@ import com.gieligotchi.model.HeartfeltWish;
 import com.gieligotchi.model.ProfileState;
 import com.gieligotchi.model.SkillingGoal;
 import com.gieligotchi.model.SkillingActivity;
+import com.gieligotchi.model.SecretEggType;
 import com.gieligotchi.model.Toy;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,9 @@ public class GieligotchiStateService
 	private volatile String syncStatus = "Log into a character to manage saves.";
 	private List<ProfileState> conflicts = new java.util.ArrayList<>();
 	private final Random heartfeltRandom = new Random();
+	private final SecretEggDiscoveryPolicy secretEggPolicy = new SecretEggDiscoveryPolicy();
+	private SecretEggType pendingSecretDiscovery;
+	private EggTier pendingPetReward;
 
 	@Inject
 	public GieligotchiStateService(ProfileStore store, HatchService hatchService, SaveCodec codec)
@@ -141,7 +145,8 @@ public class GieligotchiStateService
 		if (saved.getActiveEgg() != null)
 		{
 			EggState egg = saved.getActiveEgg();
-			journey = egg.getTier().getDisplayName() + " egg " + egg.getHatchXp() + "/" + egg.getTargetXp() + " XP";
+			String eggName = egg.isSecret() ? egg.getSecretType().getDisplayName() + " Secret" : egg.getTier().getDisplayName();
+			journey = eggName + " egg " + egg.getHatchXp() + "/" + egg.getTargetXp() + " XP";
 		}
 		else if (saved.getActiveCompanion() != null)
 		{
@@ -257,6 +262,7 @@ public class GieligotchiStateService
 			companion.recordSkill(skill.name(), rawDelta);
 			companion.recordHeartfeltSkill(skill.name(), rawDelta, x, y, plane);
 			if (companion.getMegaWish() != null) { companion.getMegaWish().record(skill, rawDelta); }
+			if (secretEggPolicy.skillingXp(rawDelta)) { discoverSecretEgg(SecretEggType.SKILLING); }
 		}
 		persist();
 		if (award > 0 || rawDelta > 0) { fireChanged(); }
@@ -315,14 +321,23 @@ public class GieligotchiStateService
 
 	public synchronized long awardNpcKill(int npcId, String name, int combatLevel)
 	{
+		return awardNpcKill(npcId, name, combatLevel, 1);
+	}
+
+	public synchronized long awardNpcKill(int npcId, String name, int combatLevel, int nearbyPlayers)
+	{
 		if (state == null) { return 0; }
-		long amount = ActivityRewardPolicy.npcKillAward(npcId, name, combatLevel);
+		long amount = ActivityRewardPolicy.npcKillAward(npcId, name, combatLevel, nearbyPlayers);
 		state.award(amount);
 		recordLevel99IfNeeded();
 		if (state.getActiveCompanion() != null)
 		{
 			state.getActiveCompanion().recordNpcKill(name, combatLevel);
 			state.getActiveCompanion().recordHeartfeltNpc(name);
+			if (BossRegistry.isBoss(npcId, name) && secretEggPolicy.bossKill())
+			{
+				discoverSecretEgg(SecretEggType.BOSSING);
+			}
 		}
 		sealIfReady();
 		persist();
@@ -345,6 +360,10 @@ public class GieligotchiStateService
 			else if (ActivityRewardPolicy.isMajorChallenge(id))
 			{
 				state.getActiveCompanion().recordMajorChallenge(label);
+			}
+			if (SecretEggDiscoveryPolicy.isRaid(id) && secretEggPolicy.raidCompletion())
+			{
+				discoverSecretEgg(SecretEggType.RAIDS);
 			}
 		}
 		sealIfReady();
@@ -416,6 +435,40 @@ public class GieligotchiStateService
 		persist();
 		fireChanged();
 		return true;
+	}
+
+	public synchronized boolean activateSecretEgg(int index)
+	{
+		if (state == null || !state.activateSecretEgg(index)) { return false; }
+		sealIfReady();
+		persist();
+		fireChanged();
+		return true;
+	}
+
+	public synchronized EggTier grantPetRewardEgg()
+	{
+		if (state == null) { return null; }
+		EggTier tier = secretEggPolicy.randomPetRewardTier();
+		state.grantRegularEgg(tier);
+		pendingPetReward = tier;
+		persist();
+		fireChanged();
+		return tier;
+	}
+
+	public synchronized EggTier consumePetReward()
+	{
+		EggTier reward = pendingPetReward;
+		pendingPetReward = null;
+		return reward;
+	}
+
+	public synchronized SecretEggType consumeSecretDiscovery()
+	{
+		SecretEggType discovery = pendingSecretDiscovery;
+		pendingSecretDiscovery = null;
+		return discovery;
 	}
 
 	public synchronized boolean activateCompanion(int index)
@@ -681,6 +734,21 @@ public class GieligotchiStateService
 		fireChanged();
 	}
 
+	public synchronized void devGrantSecretEgg(SecretEggType type)
+	{
+		if (!devToolsEnabled() || state == null || type == null) { return; }
+		state.grantSecretEgg(type);
+		pendingSecretDiscovery = type;
+		persist();
+		fireChanged();
+	}
+
+	public synchronized void devGrantPetRewardEgg()
+	{
+		if (!devToolsEnabled()) { return; }
+		grantPetRewardEgg();
+	}
+
 	public synchronized void devResetProfile()
 	{
 		if (!devToolsEnabled() || profileKey == null) { return; }
@@ -739,6 +807,13 @@ public class GieligotchiStateService
 	private void maybeOfferHeartfelt(CompanionInstance companion)
 	{
 		if (companion != null) { companion.considerHeartfeltWish(accountLevels(), accountTotalLevel(), heartfeltRandom); }
+	}
+
+	private void discoverSecretEgg(SecretEggType type)
+	{
+		if (state == null || state.getActiveCompanion() == null || type == null) { return; }
+		state.grantSecretEgg(type);
+		pendingSecretDiscovery = type;
 	}
 
 	private Map<String, Integer> accountLevels()

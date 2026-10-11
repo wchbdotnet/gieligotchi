@@ -18,6 +18,7 @@ import com.gieligotchi.model.ProfileState;
 import com.gieligotchi.model.SpeciesRarity;
 import com.gieligotchi.model.SkillingGoal;
 import com.gieligotchi.model.SkillingActivity;
+import com.gieligotchi.model.SecretEggType;
 import com.gieligotchi.model.Toy;
 import com.gieligotchi.service.GieligotchiStateService;
 import com.gieligotchi.service.HeartfeltCatalogue;
@@ -115,12 +116,14 @@ public class GieligotchiPanel extends PluginPanel
 	private final BootPanel boot = new BootPanel();
 	private final JLabel currency = new JLabel();
 	private final TamagotchiDisplay display = new TamagotchiDisplay();
+	private final CompanionSanctuaryPanel sanctuary;
 	private final Runnable stateListener = this::refresh;
 	private final Timer animationTimer;
 	private final Map<String, JButton> navigationTabs = new HashMap<>();
 	private boolean introPlayed;
 	private boolean collectionHistoryVisible;
 	private boolean collectionMemoriesVisible;
+	private boolean collectionSanctuaryVisible;
 	private int hatchHistoryPage;
 	private int stashCompanionPage;
 	private int collectionPage;
@@ -134,6 +137,8 @@ public class GieligotchiPanel extends PluginPanel
 	private boolean carePanelMinimized;
 	private boolean megaWishMinimized;
 	private boolean stashTrayMinimized;
+	private boolean secretEggTrayMinimized;
+	private boolean devToolsMinimized;
 	private String raritySection = "eggs";
 	private String activePage = HOME;
 	private String collectionPetId;
@@ -156,6 +161,7 @@ public class GieligotchiPanel extends PluginPanel
 		super(false);
 		this.stateService = stateService;
 		this.catalogue = catalogue;
+		this.sanctuary = new CompanionSanctuaryPanel(catalogue);
 		this.config = config;
 		this.hatchAnimation = hatchAnimation;
 		this.effects = effects;
@@ -223,7 +229,11 @@ public class GieligotchiPanel extends PluginPanel
 				display.repaint();
 			}
 		});
-		animationTimer = new Timer(100, event -> display.repaint());
+		animationTimer = new Timer(100, event ->
+		{
+			display.repaint();
+			sanctuary.tick();
+		});
 		refresh();
 	}
 
@@ -484,6 +494,11 @@ public class GieligotchiPanel extends PluginPanel
 			home.add(Box.createVerticalStrut(8));
 			home.add(buildStoredIncubationCard(state));
 		}
+		if (state != null && hasSecretEggs(state))
+		{
+			home.add(Box.createVerticalStrut(10));
+			home.add(buildSecretEggTray(state));
+		}
 		home.add(Box.createVerticalStrut(10));
 		home.add(buildTray(state));
 		if (state != null && state.getActiveEgg() == null && state.getActiveCompanion() == null)
@@ -581,6 +596,28 @@ public class GieligotchiPanel extends PluginPanel
 		heading.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
 		heading.setForeground(new Color(0xFF9B82));
 		heading.setAlignmentX(LEFT_ALIGNMENT);
+		JButton minimize = styledButton(devToolsMinimized ? "+" : "−", 12f);
+		minimize.setMargin(new Insets(0, 0, 0, 0));
+		minimize.setPreferredSize(new Dimension(24, 20));
+		minimize.setToolTipText(devToolsMinimized ? "Expand Dev Tools" : "Minimise Dev Tools");
+		minimize.addActionListener(event ->
+		{
+			devToolsMinimized = !devToolsMinimized;
+			refresh();
+		});
+		JPanel header = new JPanel(new BorderLayout(4, 0));
+		header.setOpaque(false);
+		header.setAlignmentX(LEFT_ALIGNMENT);
+		header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
+		header.add(heading, BorderLayout.WEST);
+		header.add(minimize, BorderLayout.EAST);
+		card.add(header);
+		card.setAlignmentX(CENTER_ALIGNMENT);
+		if (devToolsMinimized)
+		{
+			card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+			return card;
+		}
 
 		JPanel progress = new JPanel(new GridLayout(0, highTextScale() ? 1 : 2, 4, 4));
 		progress.setOpaque(false);
@@ -626,6 +663,22 @@ public class GieligotchiPanel extends PluginPanel
 		account.add(reset);
 		account.add(resetSkips);
 
+		JPanel secrets = new JPanel(new GridLayout(0, highTextScale() ? 1 : 2, 4, 4));
+		secrets.setOpaque(false);
+		for (SecretEggType type : SecretEggType.values())
+		{
+			JButton grant = styledButton("+ " + type.getDisplayName() + " secret", 11f);
+			grant.setEnabled(state != null);
+			grant.setToolTipText("Grant a " + type.getDisplayName() + " Secret Egg");
+			grant.addActionListener(event -> stateService.devGrantSecretEgg(type));
+			secrets.add(grant);
+		}
+		JButton petEgg = styledButton("+ Real-pet egg", 11f);
+		petEgg.setEnabled(state != null);
+		petEgg.setToolTipText("Simulate the random regular egg awarded for an in-game pet drop");
+		petEgg.addActionListener(event -> stateService.devGrantPetRewardEgg());
+		secrets.add(petEgg);
+
 		JPanel heartfelt = new JPanel(new GridLayout(0, highTextScale() ? 1 : 2, 4, 4));
 		heartfelt.setOpaque(false);
 		HeartfeltWish currentHeartfelt = active == null ? null : active.getHeartfeltWish();
@@ -654,15 +707,16 @@ public class GieligotchiPanel extends PluginPanel
 		heartfelt.add(forceHeartfelt); heartfelt.add(acceptHeartfelt);
 		heartfelt.add(advanceHeartfelt); heartfelt.add(completeHeartfelt); heartfelt.add(passHeartfelt);
 
-		card.add(heading);
 		card.add(Box.createVerticalStrut(6));
 		card.add(progress);
 		card.add(Box.createVerticalStrut(4));
 		card.add(account);
 		card.add(Box.createVerticalStrut(4));
+		card.add(secrets);
+		card.add(Box.createVerticalStrut(4));
 		card.add(heartfelt);
 		card.setAlignmentX(CENTER_ALIGNMENT);
-		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, highTextScale() ? 370 : 235));
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, highTextScale() ? 550 : 310));
 		return card;
 	}
 
@@ -1593,6 +1647,95 @@ public class GieligotchiPanel extends PluginPanel
 		}
 	}
 
+	private boolean hasSecretEggs(ProfileState state)
+	{
+		return !state.getSecretEggs().isEmpty()
+			|| (state.getActiveEgg() != null && state.getActiveEgg().isSecret());
+	}
+
+	private JPanel buildSecretEggTray(ProfileState state)
+	{
+		Color accent = new Color(0xB58BDE);
+		JPanel panel = new JPanel(new BorderLayout(6, 8));
+		panel.setBackground(new Color(0x211D28));
+		panel.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(new Color(0x765A8D)), new EmptyBorder(8, 8, 8, 8)));
+		panel.setAlignmentX(CENTER_ALIGNMENT);
+
+		int stored = state.getSecretEggs().size();
+		boolean active = state.getActiveEgg() != null && state.getActiveEgg().isSecret();
+		JLabel title = new JLabel("SECRET EGGS");
+		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
+		title.setForeground(accent);
+		JLabel count = new JLabel(String.valueOf(stored + (active ? 1 : 0)));
+		count.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
+		count.setForeground(new Color(0xC4C4C4));
+		count.setToolTipText((stored + (active ? 1 : 0)) + " Secret Eggs found");
+		JButton minimize = styledButton(secretEggTrayMinimized ? "+" : "−", 12f);
+		minimize.setMargin(new Insets(0, 0, 0, 0));
+		minimize.setPreferredSize(new Dimension(24, 20));
+		minimize.setToolTipText(secretEggTrayMinimized ? "Expand Secret Egg Tray" : "Minimise Secret Egg Tray");
+		minimize.addActionListener(event -> { secretEggTrayMinimized = !secretEggTrayMinimized; refresh(); });
+		JPanel right = new JPanel(new BorderLayout(4, 0));
+		right.setOpaque(false);
+		right.add(count, BorderLayout.CENTER);
+		right.add(minimize, BorderLayout.EAST);
+		JPanel heading = new JPanel(new BorderLayout(4, 0));
+		heading.setOpaque(false);
+		heading.add(title, BorderLayout.WEST);
+		heading.add(right, BorderLayout.EAST);
+		panel.add(heading, BorderLayout.NORTH);
+		if (secretEggTrayMinimized)
+		{
+			panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+			return panel;
+		}
+
+		JPanel rows = new JPanel();
+		rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+		rows.setOpaque(false);
+		if (active)
+		{
+			SecretEggType activeType = state.getActiveEgg().getSecretType();
+			JLabel incubating = new JLabel(activeType.getDisplayName().toUpperCase(Locale.ENGLISH) + "  ·  INCUBATING");
+			incubating.setForeground(new Color(0xE4D7EC));
+			incubating.setFont(FontManager.getRunescapeBoldFont().deriveFont(10f));
+			incubating.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(new Color(0x4F435A)), new EmptyBorder(4, 6, 4, 6)));
+			incubating.setAlignmentX(LEFT_ALIGNMENT);
+			incubating.setMaximumSize(new Dimension(Integer.MAX_VALUE, 25));
+			rows.add(incubating);
+		}
+		for (int index = 0; index < stored; index++)
+		{
+			if (rows.getComponentCount() > 0) { rows.add(Box.createVerticalStrut(6)); }
+			final int eggIndex = index;
+			EggState egg = state.getSecretEggs().get(index);
+			SecretEggType type = egg.getSecretType();
+			JPanel row = new JPanel(new BorderLayout(6, 0));
+			row.setOpaque(false);
+			row.setToolTipText(type.getDescription());
+			JLabel icon = new JLabel(new ImageIcon(SpriteAssets.resizeNearestOpaque(SpriteAssets.secretEgg(type), 34, 34)));
+			icon.setToolTipText(type.getDescription());
+			row.add(icon, BorderLayout.WEST);
+			JLabel name = new JLabel(type.getDisplayName() + " egg");
+			name.setForeground(type.getAccent());
+			name.setFont(FontManager.getRunescapeBoldFont().deriveFont(11f));
+			name.setToolTipText(type.getDescription());
+			row.add(name, BorderLayout.CENTER);
+			JButton incubate = styledButton("Start", 10f);
+			incubate.setPreferredSize(new Dimension(54, 28));
+			incubate.setToolTipText("Incubate this " + type.getDisplayName() + " Secret Egg");
+			incubate.setEnabled(state.getActiveEgg() == null && state.getActiveCompanion() == null);
+			incubate.addActionListener(event -> stateService.activateSecretEgg(eggIndex));
+			row.add(incubate, BorderLayout.EAST);
+			rows.add(row);
+		}
+		panel.add(rows, BorderLayout.CENTER);
+		panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46 + rows.getPreferredSize().height));
+		return panel;
+	}
+
 	private JPanel buildTray(ProfileState state)
 	{
 		JPanel panel = new JPanel(new BorderLayout(6, 8));
@@ -1820,43 +1963,69 @@ public class GieligotchiPanel extends PluginPanel
 		JPanel header = new JPanel();
 		header.setOpaque(false);
 		header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
-		JLabel progress = new JLabel("Species " + species + " / " + catalogue.all().size() + "    Variants " + variants + " / " + (catalogue.all().size() * Palette.values().length));
-		progress.setForeground(new Color(0xE0C267));
-		progress.setFont(FontManager.getRunescapeSmallFont());
+		JPanel progress = new JPanel(new GridLayout(1, 2, 6, 0));
+		progress.setOpaque(false);
+		JLabel speciesProgress = new JLabel("Species  " + species + " / " + catalogue.all().size(), SwingConstants.LEFT);
+		speciesProgress.setForeground(new Color(0xE0C267));
+		speciesProgress.setFont(FontManager.getRunescapeSmallFont().deriveFont(13f));
+		JLabel variantProgress = new JLabel("Variants  " + variants + " / "
+			+ (catalogue.all().size() * Palette.values().length), SwingConstants.RIGHT);
+		variantProgress.setForeground(new Color(0xE0C267));
+		variantProgress.setFont(FontManager.getRunescapeSmallFont().deriveFont(13f));
+		progress.add(speciesProgress);
+		progress.add(variantProgress);
 		progress.setAlignmentX(LEFT_ALIGNMENT);
+		progress.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 		header.add(progress);
-		header.add(Box.createVerticalStrut(7));
-		JPanel modes = new JPanel(new GridLayout(1, 3, 4, 0));
+		header.add(Box.createVerticalStrut(9));
+		JPanel modes = new JPanel(new GridLayout(2, 2, 5, 5));
 		modes.setOpaque(false);
-		JButton companions = styledButton("Pets", 11f);
-		companions.setEnabled(collectionHistoryVisible || collectionMemoriesVisible || collectionPetId != null);
+		JButton companions = styledButton("Companions", 12f);
+		companions.setEnabled(collectionHistoryVisible || collectionMemoriesVisible
+			|| collectionSanctuaryVisible || collectionPetId != null);
 		companions.addActionListener(event ->
 		{
 			collectionHistoryVisible = false;
 			collectionMemoriesVisible = false;
+			collectionSanctuaryVisible = false;
 			collectionPetId = null;
 			collectionMemoryCompanionId = null;
 			collectionPreviewPalette = null;
 			rebuildCollection(stateService.getState());
 		});
-		JButton memoryTab = styledButton("Memories", 11f);
+		JButton memoryTab = styledButton("Memories", 12f);
 		memoryTab.setEnabled(!collectionMemoriesVisible || collectionMemoryCompanionId != null);
 		memoryTab.addActionListener(event ->
 		{
 			collectionHistoryVisible = false;
 			collectionMemoriesVisible = true;
+			collectionSanctuaryVisible = false;
 			collectionPetId = null;
 			collectionMemoryCompanionId = null;
 			collectionPreviewPalette = null;
 			careMemoryPage = 0;
 			rebuildCollection(stateService.getState());
 		});
-		JButton history = styledButton("Hatches", 11f);
+		JButton sanctuaryTab = styledButton("Sanctuary", 12f);
+		sanctuaryTab.putClientProperty(MAX_TEXT_SCALE_PROPERTY, 1.2f);
+		sanctuaryTab.setEnabled(!collectionSanctuaryVisible);
+		sanctuaryTab.addActionListener(event ->
+		{
+			collectionHistoryVisible = false;
+			collectionMemoriesVisible = false;
+			collectionSanctuaryVisible = true;
+			collectionPetId = null;
+			collectionMemoryCompanionId = null;
+			collectionPreviewPalette = null;
+			rebuildCollection(stateService.getState());
+		});
+		JButton history = styledButton("Hatches", 12f);
 		history.setEnabled(!collectionHistoryVisible);
 		history.addActionListener(event ->
 		{
 			collectionHistoryVisible = true;
 			collectionMemoriesVisible = false;
+			collectionSanctuaryVisible = false;
 			hatchHistoryPage = 0;
 			collectionPetId = null;
 			collectionMemoryCompanionId = null;
@@ -1866,13 +2035,20 @@ public class GieligotchiPanel extends PluginPanel
 		modes.add(companions);
 		modes.add(memoryTab);
 		modes.add(history);
-		modes.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+		modes.add(sanctuaryTab);
+		modes.setMaximumSize(new Dimension(Integer.MAX_VALUE, 61));
 		modes.setAlignmentX(LEFT_ALIGNMENT);
 		header.add(modes);
+		header.add(Box.createVerticalStrut(5));
 		collection.add(header, BorderLayout.NORTH);
 
 		if (collectionHistoryVisible) { collection.add(buildHatchHistory(state), BorderLayout.CENTER); }
 		else if (collectionMemoriesVisible) { collection.add(buildCollectionMemories(state), BorderLayout.CENTER); }
+		else if (collectionSanctuaryVisible)
+		{
+			sanctuary.setState(state);
+			collection.add(sanctuary, BorderLayout.CENTER);
+		}
 		else if (collectionPetId != null)
 		{
 			PetDefinition selected = catalogue.find(collectionPetId);
@@ -2351,11 +2527,14 @@ public class GieligotchiPanel extends PluginPanel
 			{"SAFE RECOVERY", "Independent device progress needs a choice, not an automatic overwrite. Save & sync keeps recovery copies before replacement. Large saves use Export/Import; no history is trimmed."},
 			{"1 · START WITH AN EGG", "Choose an egg from the shop and incubate it from the Stash Tray. Your active egg is the one that receives Bonding XP."},
 			{"RIFTGLASS EGGS", "Riftglass eggs cost 1,500 Gotchi Points and require 500,000 Bonding XP. They hatch only Rare-or-better species, with a unique pearl shimmer that hints at the egg's attunement without revealing its exact odds."},
+			{"SECRET EGGS", "With a companion active, exceptionally rare skilling, boss and raid moments can reveal a themed Secret Egg. Each one hatches only companions from its activity family, in any normal colour variant. It waits in a separate tray and still uses the single active journey slot."},
+			{"REAL PET BONUS", "When you receive a real Old School pet, Gieligotchi adds one random regular egg to your Stash Tray. Its tier is a surprise, and the game and RuneLite both notify you."},
 			{"2 · PLAY OLD SCHOOL", "Train skills, fight NPCs, complete quests and take on larger challenges. Every style of play can help your active egg or companion grow."},
 			{"3 · WATCH IT HATCH", "The overlay and handheld show progress. When an egg is ready, interact with it to reveal its species and colour."},
 			{"4 · RAISE YOUR COMPANION", "Keep earning Bonding XP after hatching to increase its level. Meaningful milestones and tougher adventures tend to feel more rewarding."},
 			{"5 · CARE, PLAY & ITEMS", "Use A for Care, B for a quick game and C for the Toy Box. Wishes grow with your companion and reward Bonding XP, affection, personality and memories. You begin with three wish skips, which replenish through play up to the same cap."},
 			{"PET MEMORIES", "Open Collection > Memories and choose any active or stashed companion to read its own journal. Milestones, discoveries and Heartfelt completions stay with that unique pet."},
+			{"COMPANION SANCTUARY", "Open Collection > Sanctuary to visit your active and stashed companions together in their shared home. Select anyone to see their level, mood and current activity. Use − and + to zoom, then drag the enlarged scene to explore."},
 			{"HEARTFELT WISHES", "About once in every five wish generations, your companion may suggest a particular Gielinor adventure. These can involve named places, crafting chains, bosses or fresh drops. Accept it for much larger Bonding XP and Gotchi Point rewards, or pass for free."},
 			{"READY, STRETCH OR ASPIRATIONAL", "Heartfelt Wishes consider your account progress but may ask for a nearby unlock—or occasionally something distant. Requirements and rewards are shown before acceptance. There is no time limit, and an accepted wish can still be abandoned for free."},
 			{"APEX HEARTFELT WISHES", "A very small set of personal raid-unique hunts are Apex wishes. They are the sole tasks permitted to award up to 1,000 Gotchi Points. Another player's raid reward never completes yours."},
@@ -2378,7 +2557,9 @@ public class GieligotchiPanel extends PluginPanel
 			{"ONE ACTIVE JOURNEY", "Only the active egg or companion receives Bonding XP. Stashed companions are safe, but do not progress."},
 			{"WHAT COUNTS", "Skill training, NPC defeats, quests and recognised challenges can contribute. Rewards vary by activity and favour meaningful play."},
 			{"FAIR PROGRESS", "Repeated messages or duplicate events may be ignored. RuneLite also synchronises skill totals on login so old XP is not awarded again."},
+			{"MASS BOSSING", "Boss Bonding XP adapts to the number of players near the encounter. Solo, duo and trio rewards stay whole; larger groups receive progressively less per kill to account for much faster mass completions."},
 			{"EGGS & HATCHES", "Egg tiers influence the kinds of outcomes you may discover. A ready egg must be hatched before that active journey can continue."},
+			{"SECRET DISCOVERIES", "A companion must be active to find a Secret Egg. Raid completions roll about 1 in 100, boss kills about 1 in 2,000, and skilling averages one discovery per 5,000,000 live XP. Stored Secret Eggs never replace regular eggs."},
 			{"COSMETICS, NOT POWER", "Colours, toys, backdrops, affection and personality personalise your companion. They do not change Old School combat or skilling."},
 			{"STASH & COLLECTION", "Stash space is limited and paginated. Collection entries and hatch records remain permanent discoveries even if a companion later leaves."},
 			{"SELLING IS FINAL", "Selling returns Gotchi Points but permanently removes that companion. Value combines species, colour and lifetime Bonding XP; every million XP adds 250 GPts. The interface asks for confirmation."},

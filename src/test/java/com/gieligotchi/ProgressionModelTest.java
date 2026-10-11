@@ -67,6 +67,11 @@ public class ProgressionModelTest
 		assertEquals(10_240, ActivityRewardPolicy.npcKillAward("Phosani's Nightmare", 1024));
 		assertEquals(8_900, ActivityRewardPolicy.npcKillAward("Araxxor", 890));
 		assertEquals(400, ActivityRewardPolicy.npcKillAward("Araxyte", 146));
+		assertEquals(10_010, ActivityRewardPolicy.npcKillAward(-1, "Nex", 1001, 1));
+		assertEquals(10_010, ActivityRewardPolicy.npcKillAward(-1, "Nex", 1001, 3));
+		assertEquals(4_567, ActivityRewardPolicy.npcKillAward(-1, "Nex", 1001, 8));
+		assertEquals(911, ActivityRewardPolicy.npcKillAward(-1, "Nex", 1001, 60));
+		assertEquals(400, ActivityRewardPolicy.npcKillAward(-1, "Araxyte", 146, 60));
 		assertTrue(ActivityRewardPolicy.isMajorChallenge("cox"));
 		assertTrue(ActivityRewardPolicy.isMajorChallenge("corrupted_gauntlet"));
 		assertFalse(ActivityRewardPolicy.isMajorChallenge("pest_control_blue"));
@@ -79,6 +84,8 @@ public class ProgressionModelTest
 		assertTrue(BossRegistry.isBoss(-1, "General Graardor"));
 		assertTrue(BossRegistry.isBoss(-1, "Great Olm"));
 		assertTrue(BossRegistry.isBoss(-1, "Fragment of Seren"));
+		assertTrue(BossRegistry.isBoss(-1, "Shellbane gryphon"));
+		assertEquals(2_350, ActivityRewardPolicy.npcKillAward(-1, "Shellbane gryphon", 235));
 		assertTrue(BossRegistry.isBoss(240, "Black demon"));
 		assertFalse(BossRegistry.isBoss(1432, "Black demon"));
 		assertFalse(BossRegistry.isBoss(-1, "Araxyte"));

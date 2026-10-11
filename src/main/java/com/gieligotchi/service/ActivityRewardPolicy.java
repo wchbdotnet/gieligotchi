@@ -31,14 +31,30 @@ public final class ActivityRewardPolicy
 
 	public static long npcKillAward(int npcId, String npcName, int combatLevel)
 	{
+		return npcKillAward(npcId, npcName, combatLevel, 1);
+	}
+
+	public static long npcKillAward(int npcId, String npcName, int combatLevel, int nearbyPlayers)
+	{
 		String name = npcName == null ? "" : npcName.trim().toLowerCase(Locale.ENGLISH);
-		long base = BossRegistry.isBoss(npcId, npcName)
+		boolean boss = BossRegistry.isBoss(npcId, npcName);
+		long base = boss
 			? Math.max(0, combatLevel) * 10L
 			: SkillRewardPolicy.npcKillAward(combatLevel);
-		if ("tztok-jad".equals(name)) { return Math.max(base, 30_000L); }
-		if ("tzkal-zuk".equals(name)) { return Math.max(base, 100_000L); }
-		if ("sol heredit".equals(name)) { return Math.max(base, 50_000L); }
-		return base;
+		if ("tztok-jad".equals(name)) { base = Math.max(base, 30_000L); }
+		if ("tzkal-zuk".equals(name)) { base = Math.max(base, 100_000L); }
+		if ("sol heredit".equals(name)) { base = Math.max(base, 50_000L); }
+		return boss ? scaleMassBossAward(base, nearbyPlayers) : base;
+	}
+
+	/** Preserve small-team value while normalising bosses that die much faster in masses. */
+	public static long scaleMassBossAward(long baseAward, int nearbyPlayers)
+	{
+		if (baseAward <= 0) { return 0; }
+		int players = Math.max(1, nearbyPlayers);
+		if (players <= 3) { return baseAward; }
+		double factor = Math.pow(3d / players, 0.8d);
+		return Math.max(1L, Math.round(baseAward * factor));
 	}
 
 	public static long npcKillAward(String npcName, int combatLevel)

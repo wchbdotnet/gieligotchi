@@ -51,6 +51,17 @@ turning it into another list of chores.
 6. **Keep the memories.** Open Collection > Memories to revisit the individual
    journal and Heartfelt history of any active or stashed companion.
 
+With a companion active, exceptionally rare skilling, boss and raid moments can
+also reveal a **Secret Egg**. These eggs live in their own compact tray and hatch
+only companions connected to the activity that revealed them, while retaining
+the full range of collectible colour variants. Raid completions roll at roughly
+1 in 100, boss kills at 1 in 2,000, and skilling averages one discovery per
+5,000,000 live XP. Secret and regular eggs can be stored together, but there is
+still only one active incubation journey.
+
+Receiving a real Old School pet also awards one randomly tiered regular egg to
+the Stash Tray, with an in-game and RuneLite notification.
+
 Gieligotchi keeps some discoveries behind the journey itself. The guide explains
 what to expect without turning every hatch, wish or reward into a spreadsheet.
 
@@ -61,6 +72,8 @@ what to expect without turning every hatch, wish or reward into a spreadsheet.
 - Account-aware Heartfelt Wishes with specific Gielinor tasks and free passing
 - A persistent, per-companion memory book for meaningful moments
 - Animated hatching and a history of every companion you have raised
+- Rare Skilling, Bossing and Raids Secret Eggs with activity-specific hatch pools
+- A bonus regular egg whenever you obtain a real Old School pet
 - A special red partyhat for companions that reach max level
 - A compact Tamagotchi-inspired sidebar and an optional movable in-game overlay
 
