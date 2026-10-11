@@ -3,6 +3,7 @@ package com.gieligotchi;
 import com.google.inject.Provides;
 import com.gieligotchi.model.EggState;
 import com.gieligotchi.model.ProfileState;
+import com.gieligotchi.model.SecretEggType;
 import com.gieligotchi.model.Toy;
 import com.gieligotchi.service.ActivityRewardPolicy;
 import com.gieligotchi.service.GieligotchiStateService;
@@ -34,6 +35,7 @@ import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemID;
 import net.runelite.api.NPC;
+import net.runelite.api.Player;
 import net.runelite.api.Skill;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.events.ActorDeath;
@@ -69,6 +71,7 @@ import net.runelite.client.util.Text;
 )
 public class GieligotchiPlugin extends Plugin implements MouseListener
 {
+	private static final int NPC_ENGAGEMENT_TIMEOUT_TICKS = 30;
 	@Inject private Client client;
 	@Inject private GieligotchiConfig config;
 	@Inject private GieligotchiStateService stateService;
@@ -93,6 +96,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	private final Map<String, Long> recentActivityAwards = new HashMap<>();
 	private final Map<Integer, Integer> inventorySnapshot = new HashMap<>();
 	private boolean inventorySnapshotReady;
+	private long lastPetEggAwardAt;
 	private final Runnable profileListener = this::onProfileChanged;
 	private Point overlayDragOffset;
 	private boolean overlayDragged;
@@ -187,6 +191,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		recentActivityAwards.clear();
 		inventorySnapshot.clear();
 		inventorySnapshotReady = false;
+		lastPetEggAwardAt = 0L;
 		log.info("Gieligotchi stopped");
 	}
 
@@ -226,7 +231,12 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			}
 		}
 		int currentTick = client.getTickCount();
-		engagedNpcTicks.entrySet().removeIf(entry -> currentTick - entry.getValue() > 12);
+		if (client.getLocalPlayer() != null && client.getLocalPlayer().getInteracting() instanceof NPC)
+		{
+			NPC target = (NPC) client.getLocalPlayer().getInteracting();
+			engagedNpcTicks.put(target.getIndex(), currentTick);
+		}
+		engagedNpcTicks.entrySet().removeIf(entry -> currentTick - entry.getValue() > NPC_ENGAGEMENT_TIMEOUT_TICKS);
 		recentActivityAwards.entrySet().removeIf(entry -> System.currentTimeMillis() - entry.getValue() > 10_000L);
 		if (client.getLocalPlayer() != null)
 		{
@@ -240,6 +250,8 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			if (stateService.awardSlayerTask() > 0) { notifyIfReady(); }
 		}
 		lastSlayerCount = slayerCount;
+		notifySecretDiscovery();
+		notifyPetReward();
 	}
 
 	@Subscribe
@@ -274,6 +286,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			location == null ? -1 : location.getX(), location == null ? -1 : location.getY(),
 			location == null ? -1 : location.getPlane());
 		if (award > 0) { notifyIfReady(); }
+		notifySecretDiscovery();
 	}
 
 	@Subscribe
@@ -343,9 +356,33 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		if (!(event.getActor() instanceof NPC)) { return; }
 		NPC npc = (NPC) event.getActor();
 		Integer engagedAt = engagedNpcTicks.remove(npc.getIndex());
-		if (engagedAt == null || client.getTickCount() - engagedAt > 12) { return; }
-		long award = stateService.awardNpcKill(npc.getId(), npc.getName(), npc.getCombatLevel());
+		if (engagedAt == null || client.getTickCount() - engagedAt > NPC_ENGAGEMENT_TIMEOUT_TICKS) { return; }
+		int nearbyPlayers = nearbyPlayersAt(npc, 20);
+		long award = stateService.awardNpcKill(npc.getId(), npc.getName(), npc.getCombatLevel(), nearbyPlayers);
+		if (nearbyPlayers > 3)
+		{
+			log.debug("Mass scaling {} kill across {} nearby players to {} Bonding XP",
+				npc.getName(), nearbyPlayers, award);
+		}
 		if (award > 0) { notifyIfReady(); }
+		notifySecretDiscovery();
+	}
+
+	private int nearbyPlayersAt(NPC npc, int radius)
+	{
+		if (npc == null || npc.getWorldLocation() == null) { return 1; }
+		Player localPlayer = client.getLocalPlayer();
+		int count = localPlayer == null ? 0 : 1;
+		for (Player player : client.getPlayers())
+		{
+			if (player != null && player != localPlayer && player.getWorldLocation() != null
+				&& player.getWorldLocation().getPlane() == npc.getWorldLocation().getPlane()
+				&& player.getWorldLocation().distanceTo(npc.getWorldLocation()) <= radius)
+			{
+				count++;
+			}
+		}
+		return Math.max(1, count);
 	}
 
 	@Subscribe
@@ -354,6 +391,16 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		if (event == null || (event.getType() != ChatMessageType.GAMEMESSAGE
 			&& event.getType() != ChatMessageType.SPAM)) { return; }
 		String message = Text.removeTags(event.getMessage());
+		if (isPetAcquisitionMessage(message))
+		{
+			long now = System.currentTimeMillis();
+			if (now - lastPetEggAwardAt > 5_000L)
+			{
+				lastPetEggAwardAt = now;
+				stateService.grantPetRewardEgg();
+				notifyPetReward();
+			}
+		}
 		stateService.recordSkillingActivity(com.gieligotchi.model.SkillingActivity.match(message));
 		ActivityRewardPolicy.Reward reward = ActivityRewardPolicy.match(message);
 		if (reward == null) { return; }
@@ -367,6 +414,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			log.debug("{} awarded {} Bonding XP", reward.getLabel(), award);
 			notifyIfReady();
 		}
+		notifySecretDiscovery();
 	}
 
 	@Subscribe
@@ -451,6 +499,35 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			notifier.notify("Your Gieligotchi egg is ready to hatch!");
 			stateService.markReadyNotificationSent();
 		}
+	}
+
+	private void notifySecretDiscovery()
+	{
+		SecretEggType type = stateService.consumeSecretDiscovery();
+		if (type == null) { return; }
+		String message = "Your companion discovered a secret " + type.getDisplayName()
+			+ " egg! It is waiting in the Secret Egg Tray.";
+		queueSystemMessage(message);
+		notifier.notify(message);
+	}
+
+	private void notifyPetReward()
+	{
+		com.gieligotchi.model.EggTier tier = stateService.consumePetReward();
+		if (tier == null) { return; }
+		String notice = "Your new Old School pet brought a " + tier.getDisplayName()
+			+ " egg! It has been added to the Stash Tray.";
+		queueSystemMessage(notice);
+		notifier.notify(notice);
+	}
+
+	private static boolean isPetAcquisitionMessage(String message)
+	{
+		if (message == null) { return false; }
+		String plain = message.toLowerCase(Locale.ENGLISH);
+		return plain.contains("funny feeling like you're being followed")
+			|| plain.contains("funny feeling you would have been followed")
+			|| plain.contains("something weird sneaking into your backpack");
 	}
 
 	private void onProfileChanged()

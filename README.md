@@ -52,6 +52,9 @@ A Tamagotchi-style companion without the chores. Nothing decays when you step aw
 - Account-aware Heartfelt Wishes with specific Gielinor tasks, substantial rewards and free passing
 - Per-companion memory journals available through Collection > Memories
 - Animated egg hatching, skilling incubation goals and cosmetic rewards
+- Rare Skilling, Bossing and Raids Secret Eggs with activity-specific hatch pools
+- A bonus regular egg whenever you obtain a real Old School pet
+- A shared, interactive Sanctuary for active and stashed companions
 - A 10% Bonding XP boost while a toy is equipped, plus companion level-up celebrations
 - Compact sidebar, movable overlay and optional character-save sync
 

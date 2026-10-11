@@ -15,6 +15,7 @@ public class EggState
 	private boolean starter;
 	private boolean readyNotificationSent;
 	private HatchReceipt sealedResult;
+	private SecretEggType secretType;
 	private SkillingGoal skillingGoal;
 	// Fixed at purchase and saved with this egg; 0-20 maps to 5-25% Legendary.
 	private int attunement;
@@ -40,6 +41,17 @@ public class EggState
 		return egg;
 	}
 
+	public static EggState secret(SecretEggType type)
+	{
+		if (type == null) { throw new IllegalArgumentException("Secret egg type is required"); }
+		EggState egg = new EggState();
+		egg.instanceId = UUID.randomUUID().toString();
+		egg.tier = EggTier.RARE;
+		egg.targetXp = SecretEggType.HATCH_XP;
+		egg.secretType = type;
+		return egg;
+	}
+
 	public String getInstanceId() { return instanceId; }
 	public EggTier getTier() { return tier; }
 	public long getHatchXp() { return hatchXp; }
@@ -48,6 +60,8 @@ public class EggState
 	public boolean isStarter() { return starter; }
 	public boolean isReadyNotificationSent() { return readyNotificationSent; }
 	public HatchReceipt getSealedResult() { return sealedResult; }
+	public SecretEggType getSecretType() { return secretType; }
+	public boolean isSecret() { return secretType != null; }
 	public SkillingGoal getSkillingGoal() { return skillingGoal; }
 	public double[] getSpeciesOdds()
 	{

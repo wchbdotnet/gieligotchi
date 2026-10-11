@@ -129,6 +129,21 @@ public class JourneyModelTest
 	}
 
 	@Test
+	public void shellbaneGryphonCountsItsFullCombatLevelTowardCombatWishes() throws Exception
+	{
+		CompanionInstance companion = companion();
+		CompanionWish wish = new CompanionWish(CompanionWish.Type.COMBAT,
+			"Defeat foes worth 300 combat levels", 300);
+		setWish(companion, wish);
+		companion.recordNpcKill("Shellbane gryphon", 235);
+		assertEquals(235L, wish.getProgress());
+		assertFalse(wish.isComplete());
+		companion.recordNpcKill("Gryphon", 65);
+		assertEquals(300L, wish.getProgress());
+		assertTrue(wish.isComplete());
+	}
+
+	@Test
 	public void wishTargetsAndRewardsScaleWithCompanionLevel()
 	{
 		assertEquals(80L, CompanionWish.forLevel(CompanionWish.Type.COMBAT, 1).getTarget());

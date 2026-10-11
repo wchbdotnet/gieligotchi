@@ -4,6 +4,7 @@ public class HatchReceipt
 {
 	private String eggInstanceId;
 	private EggTier eggTier;
+	private SecretEggType secretEggType;
 	private String speciesId;
 	private SpeciesRarity speciesRarity;
 	private double speciesTierChance;
@@ -30,8 +31,18 @@ public class HatchReceipt
 		this.rolledAt = System.currentTimeMillis();
 	}
 
+	public HatchReceipt(String eggInstanceId, EggTier eggTier, SecretEggType secretEggType,
+		String speciesId, SpeciesRarity speciesRarity, double speciesTierChance,
+		int speciesPoolSize, Palette palette, double paletteChance, double combinedChance)
+	{
+		this(eggInstanceId, eggTier, speciesId, speciesRarity, speciesTierChance,
+			speciesPoolSize, palette, paletteChance, combinedChance);
+		this.secretEggType = secretEggType;
+	}
+
 	public String getEggInstanceId() { return eggInstanceId; }
 	public EggTier getEggTier() { return eggTier; }
+	public SecretEggType getSecretEggType() { return secretEggType; }
 	public String getSpeciesId() { return speciesId; }
 	public SpeciesRarity getSpeciesRarity() { return speciesRarity; }
 	public double getSpeciesTierChance() { return speciesTierChance; }

@@ -2,6 +2,7 @@ package com.gieligotchi.ui;
 
 import com.gieligotchi.model.CompanionInstance;
 import com.gieligotchi.model.EggTier;
+import com.gieligotchi.model.SecretEggType;
 import com.gieligotchi.model.Toy;
 import com.gieligotchi.service.LevelCurve;
 import java.awt.Graphics2D;
@@ -37,6 +38,22 @@ public final class SpriteAssets
 				resizeNearestOpaque(source, 96, 96));
 		}
 		return load("egg:" + id, "/com/gieligotchi/images/eggs/egg-" + id + ".png");
+	}
+
+	public static BufferedImage secretEgg(SecretEggType type)
+	{
+		if (type == null) { return egg(EggTier.RARE); }
+		return load("egg:secret:" + type.name(),
+			"/com/gieligotchi/images/eggs/egg-secret-" + type.name().toLowerCase() + ".png");
+	}
+
+	public static BufferedImage secretEggFrame(SecretEggType type, int frame, String name)
+	{
+		if (type == null || frame < 0 || frame > 8) { return secretEgg(type); }
+		String id = type.name().toLowerCase();
+		return load("egg-frame:secret:" + id + ":" + frame,
+			String.format("/com/gieligotchi/images/egg-animation/secret_%s/%02d_%s.png",
+				id, frame, name));
 	}
 
 	public static BufferedImage companion(CompanionInstance companion)
@@ -139,6 +156,25 @@ public final class SpriteAssets
 			"/com/gieligotchi/images/backdrops/" + backdropId + ".png");
 	}
 
+	public static BufferedImage sanctuaryBackdrop()
+	{
+		BufferedImage source = load("backdrop:sanctuary:source",
+			"/com/gieligotchi/images/backdrops/sanctuary.png");
+		return CACHE.computeIfAbsent("backdrop:sanctuary:pixel-scene", ignored ->
+		{
+			// The source is intentionally richer than the companion sprites. Reducing it to a
+			// coarse pixel canvas before display makes the residents belong in the same world
+			// instead of looking pasted over a high-detail illustration.
+			BufferedImage softened = new BufferedImage(140, 350, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = softened.createGraphics();
+			graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+				RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			graphics.drawImage(source, 0, 0, softened.getWidth(), softened.getHeight(), null);
+			graphics.dispose();
+			return softened;
+		});
+	}
+
 	public static BufferedImage toy(Toy toy)
 	{
 		if (toy == null) { return null; }
@@ -203,6 +239,46 @@ public final class SpriteAssets
 		drawNearestOpaque(graphics, image, 0, 0, contentWidth, contentHeight);
 		graphics.dispose();
 		return scaled;
+	}
+
+	public static BufferedImage resizeNearestOutlinedOpaque(BufferedImage image, int width, int height)
+	{
+		if (image == null) { return null; }
+		BufferedImage content = resizeNearestOpaque(image, Math.max(1, width - 4), Math.max(1, height - 4));
+		BufferedImage outlined = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = outlined.createGraphics();
+		graphics.drawImage(content, 2, 1, null);
+		graphics.dispose();
+		BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		for (int y = 0; y < height; y++)
+		{
+			for (int x = 0; x < width; x++)
+			{
+				int colour = outlined.getRGB(x, y);
+				if ((colour >>> 24) != 0)
+				{
+					result.setRGB(x, y, colour);
+					continue;
+				}
+				boolean neighbour = false;
+				for (int offsetY = -1; offsetY <= 1 && !neighbour; offsetY++)
+				{
+					for (int offsetX = -1; offsetX <= 1; offsetX++)
+					{
+						int sampleX = x + offsetX;
+						int sampleY = y + offsetY;
+						if (sampleX >= 0 && sampleX < width && sampleY >= 0 && sampleY < height
+							&& (outlined.getRGB(sampleX, sampleY) >>> 24) >= 64)
+						{
+							neighbour = true;
+							break;
+						}
+					}
+				}
+				if (neighbour) { result.setRGB(x, y, 0xD0121711); }
+			}
+		}
+		return result;
 	}
 
 	private static BufferedImage shadowFor(BufferedImage image)
