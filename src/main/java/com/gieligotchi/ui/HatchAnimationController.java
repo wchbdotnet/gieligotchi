@@ -5,6 +5,7 @@ import com.gieligotchi.model.EggState;
 import com.gieligotchi.model.EggTier;
 import com.gieligotchi.model.HatchReceipt;
 import com.gieligotchi.model.ProfileState;
+import com.gieligotchi.model.SecretEggType;
 import com.gieligotchi.service.GieligotchiStateService;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
@@ -31,6 +32,7 @@ public class HatchAnimationController
 	private volatile int crackFrame = -1;
 	private volatile int ceremonyStep;
 	private volatile EggTier crackingTier;
+	private volatile SecretEggType crackingSecretType;
 	private volatile HatchReceipt lastReceipt;
 	private volatile CompanionInstance lastCompanion;
 	private volatile long fadeStartedAt;
@@ -50,6 +52,7 @@ public class HatchAnimationController
 		ceremonyActive = true;
 		revealing = false;
 		crackingTier = egg.getTier();
+		crackingSecretType = egg.getSecretType();
 		ceremonyStep = 0;
 		crackFrame = CEREMONY_FRAMES[ceremonyStep];
 		lastReceipt = null;
@@ -111,6 +114,7 @@ public class HatchAnimationController
 		revealing = false;
 		crackFrame = -1;
 		crackingTier = null;
+		crackingSecretType = null;
 		lastReceipt = null;
 		lastCompanion = null;
 		fadeStartedAt = 0L;
@@ -120,9 +124,14 @@ public class HatchAnimationController
 	{
 		if (ceremonyActive && !revealing && crackingTier != null && crackFrame >= 0)
 		{
+			if (crackingSecretType != null)
+			{
+				return SpriteAssets.secretEggFrame(crackingSecretType, crackFrame, FRAME_NAMES[crackFrame]);
+			}
 			return SpriteAssets.eggFrame(crackingTier, crackFrame, FRAME_NAMES[crackFrame]);
 		}
 		int frame = reducedMotion ? 0 : idleFrame(egg);
+		if (egg.isSecret()) { return SpriteAssets.secretEggFrame(egg.getSecretType(), frame, FRAME_NAMES[frame]); }
 		if (egg.getTier() == EggTier.RIFTGLASS)
 		{
 			return SpriteAssets.riftglassIdleFrame(frame, egg.getProgress());
@@ -166,6 +175,7 @@ public class HatchAnimationController
 		revealing = false;
 		crackFrame = -1;
 		crackingTier = null;
+		crackingSecretType = null;
 		lastReceipt = null;
 		lastCompanion = null;
 		fadeStartedAt = 0L;
