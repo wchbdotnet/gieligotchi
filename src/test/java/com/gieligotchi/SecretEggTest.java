@@ -34,6 +34,22 @@ public class SecretEggTest
 	}
 
 	@Test
+	public void deleteAllSecretEggsRemovesStoredAndActiveSecretEggsOnly()
+	{
+		ProfileState profile = ProfileState.fresh("delete-secret-eggs");
+		assertTrue(profile.stashActive());
+		profile.grantSecretEgg(SecretEggType.SKILLING);
+		profile.grantSecretEgg(SecretEggType.SKILLING);
+		assertTrue(profile.activateSecretEgg(0));
+
+		assertEquals(2, profile.deleteAllSecretEggs());
+		assertNull(profile.getActiveEgg());
+		assertTrue(profile.getSecretEggs().isEmpty());
+		assertEquals(1, profile.getStashedEggs().size());
+		assertEquals(EggTier.COMMON, profile.getStashedEggs().get(0).getTier());
+	}
+
+	@Test
 	public void everySecretCategoryHatchesOnlyItsOwnPool()
 	{
 		HatchService hatchService = new HatchService(new PetCatalogue(new Gson()));

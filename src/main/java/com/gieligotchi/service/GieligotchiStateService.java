@@ -466,6 +466,19 @@ public class GieligotchiStateService
 		return true;
 	}
 
+	public synchronized int deleteAllSecretEggs()
+	{
+		if (state == null) { return 0; }
+		int deleted = state.deleteAllSecretEggs();
+		if (deleted > 0)
+		{
+			pendingSecretDiscovery = null;
+			persist();
+			fireChanged();
+		}
+		return deleted;
+	}
+
 	public synchronized EggTier grantPetRewardEgg()
 	{
 		if (state == null) { return null; }
