@@ -9,6 +9,7 @@ import com.gieligotchi.service.ActivityRewardPolicy;
 import com.gieligotchi.service.ApexRewardPolicy;
 import com.gieligotchi.service.GieligotchiStateService;
 import com.gieligotchi.service.ItemAcquisitionGuard;
+import com.gieligotchi.service.WorldProgressionPolicy;
 import com.gieligotchi.ui.GieligotchiOverlay;
 import com.gieligotchi.ui.GieligotchiPanel;
 import com.gieligotchi.ui.HatchAnimationController;
@@ -97,6 +98,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	private String loadedProfileKey;
 	private boolean welcomeOpening;
 	private boolean skillBaselinesSynchronized;
+	private boolean resetSkillBaselinesAfterTransition;
 	private long saveReplacementVersion;
 	private int lastRegionId = -1;
 	private int lastSlayerCount = -1;
@@ -198,6 +200,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		if (navigationButton != null) { clientToolbar.removeNavigation(navigationButton); }
 		panel.shutDown();
 		loadedProfileKey = null;
+		resetSkillBaselinesAfterTransition = false;
 		overlayDragOffset = null;
 		overlayDragged = false;
 		engagedNpcTicks.clear();
@@ -231,21 +234,34 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			saveReplacementVersion = stateService.getReplacementVersion();
 			skillBaselinesSynchronized = false;
 		}
-		if (!skillBaselinesSynchronized && stateService.getState() != null)
+		if (!skillBaselinesSynchronized && stateService.getState() != null
+			&& client.getGameState() == GameState.LOGGED_IN)
 		{
 			Map<Skill, Integer> currentXp = new EnumMap<>(Skill.class);
 			for (Skill skill : Skill.values())
 			{
 				if (skill != Skill.OVERALL) { currentXp.put(skill, client.getSkillExperience(skill)); }
 			}
-			long reconciledXp = stateService.reconcileLoginXp(currentXp, client.getOverallExperience());
+			boolean resetOnly = resetSkillBaselinesAfterTransition || !isProgressionAllowed();
+			long reconciledXp = 0;
+			if (resetOnly) { stateService.synchronizeSkillBaselines(currentXp, client.getOverallExperience()); }
+			else { reconciledXp = stateService.reconcileLoginXp(currentXp, client.getOverallExperience()); }
 			skillBaselinesSynchronized = true;
+			resetSkillBaselinesAfterTransition = false;
 			if (reconciledXp > 0)
 			{
 				queueSystemMessage("Welcome back! You gained " + format(reconciledXp)
 					+ " Bonding XP from progress made while you were away.");
 				notifyIfReady();
 			}
+		}
+		if (!isProgressionAllowed())
+		{
+			lastRegionId = -1;
+			lastSlayerCount = -1;
+			engagedNpcTicks.clear();
+			recentActivityAwards.clear();
+			return;
 		}
 		int currentTick = client.getTickCount();
 		if (client.getLocalPlayer() != null && client.getLocalPlayer().getInteracting() instanceof NPC)
@@ -283,7 +299,20 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 				raidRewardSeen = false;
 			}
 		}
-		if (event.getGameState() == GameState.LOGGED_IN) { loadCurrentProfile(); }
+		if (event.getGameState() == GameState.HOPPING || event.getGameState() == GameState.CONNECTION_LOST)
+		{
+			skillBaselinesSynchronized = false;
+			resetSkillBaselinesAfterTransition = true;
+			lastRegionId = -1;
+			lastSlayerCount = -1;
+			engagedNpcTicks.clear();
+			recentActivityAwards.clear();
+			inventorySnapshot.clear();
+			inventorySnapshotReady = false;
+			itemAcquisitionGuard.clear();
+			raidRewardSeen = false;
+		}
+		else if (event.getGameState() == GameState.LOGGED_IN) { loadCurrentProfile(); }
 		else if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
 			stateService.syncNow(null);
@@ -292,6 +321,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			loadedProfileKey = null;
 			welcomeOpening = false;
 			skillBaselinesSynchronized = false;
+			resetSkillBaselinesAfterTransition = false;
 			lastRegionId = -1;
 			lastSlayerCount = -1;
 			engagedNpcTicks.clear();
@@ -310,7 +340,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded event)
 	{
-		if (event == null) { return; }
+		if (event == null || !isProgressionAllowed()) { return; }
 		if (event.getGroupId() == InterfaceID.TRADEMAIN || event.getGroupId() == InterfaceID.TRADECONFIRM)
 		{
 			tradeOpen = true;
@@ -360,7 +390,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onStatChanged(StatChanged event)
 	{
-		if (!skillBaselinesSynchronized) { return; }
+		if (!skillBaselinesSynchronized || !isProgressionAllowed()) { return; }
 		net.runelite.api.coords.WorldPoint location = client.getLocalPlayer() == null ? null
 			: client.getLocalPlayer().getWorldLocation();
 		long award = stateService.observeSkill(event.getSkill(), event.getXp(), client.getOverallExperience(),
@@ -380,6 +410,13 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		{
 			if (item != null && item.getId() >= 0 && item.getQuantity() > 0)
 			{ current.merge(item.getId(), item.getQuantity(), Integer::sum); }
+		}
+		if (!isProgressionAllowed())
+		{
+			inventorySnapshot.clear();
+			inventorySnapshot.putAll(current);
+			inventorySnapshotReady = true;
+			return;
 		}
 		if (!inventorySnapshotReady)
 		{
@@ -421,7 +458,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
-		if (event == null || client.getLocalPlayer() == null) { return; }
+		if (event == null || client.getLocalPlayer() == null || !isProgressionAllowed()) { return; }
 		String option = Text.removeTags(event.getMenuOption());
 		if ("Drop".equalsIgnoreCase(option) && event.getItemId() >= 0)
 		{
@@ -464,6 +501,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onInteractingChanged(InteractingChanged event)
 	{
+		if (!isProgressionAllowed()) { return; }
 		if (event.getSource() == client.getLocalPlayer() && event.getTarget() instanceof NPC)
 		{
 			engagedNpcTicks.put(((NPC) event.getTarget()).getIndex(), client.getTickCount());
@@ -473,6 +511,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onHitsplatApplied(HitsplatApplied event)
 	{
+		if (!isProgressionAllowed()) { return; }
 		Actor actor = event.getActor();
 		Hitsplat hitsplat = event.getHitsplat();
 		if (actor instanceof NPC && hitsplat != null && hitsplat.isMine())
@@ -484,7 +523,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onActorDeath(ActorDeath event)
 	{
-		if (!(event.getActor() instanceof NPC)) { return; }
+		if (!isProgressionAllowed() || !(event.getActor() instanceof NPC)) { return; }
 		NPC npc = (NPC) event.getActor();
 		Integer engagedAt = engagedNpcTicks.remove(npc.getIndex());
 		if (engagedAt == null || client.getTickCount() - engagedAt > NPC_ENGAGEMENT_TIMEOUT_TICKS) { return; }
@@ -520,7 +559,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	public void onChatMessage(ChatMessage event)
 	{
 		if (event == null || (event.getType() != ChatMessageType.GAMEMESSAGE
-			&& event.getType() != ChatMessageType.SPAM)) { return; }
+			&& event.getType() != ChatMessageType.SPAM) || !isProgressionAllowed()) { return; }
 		String message = Text.removeTags(event.getMessage());
 		if (isPetAcquisitionMessage(message))
 		{
@@ -579,6 +618,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		{
 			hatchAnimation.reset();
 			skillBaselinesSynchronized = false;
+			resetSkillBaselinesAfterTransition = false;
 			lastRegionId = -1;
 			lastSlayerCount = -1;
 			queueSystemMessage("Your Gieligotchi account has been reset. A new starter egg is waiting for you.");
@@ -599,6 +639,12 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	private static String format(long amount)
 	{
 		return String.format(Locale.UK, "%,d", amount);
+	}
+
+	private boolean isProgressionAllowed()
+	{
+		return client.getGameState() == GameState.LOGGED_IN
+			&& WorldProgressionPolicy.allows(client.getWorldType());
 	}
 
 	private void loadCurrentProfile()

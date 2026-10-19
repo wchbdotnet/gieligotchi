@@ -318,6 +318,27 @@ public class GieligotchiStateService
 		return award;
 	}
 
+	/**
+	 * Replaces XP baselines without granting progress. Used after a world transition, where RuneLite may
+	 * briefly expose a different character profile or temporary-world stats as ordinary stat changes.
+	 */
+	public synchronized void synchronizeSkillBaselines(Map<Skill, Integer> currentXp, long currentOverallXp)
+	{
+		if (state == null || currentXp == null) { return; }
+		for (Map.Entry<Skill, Integer> entry : currentXp.entrySet())
+		{
+			Skill skill = entry.getKey();
+			Integer xp = entry.getValue();
+			if (skill != null && skill != Skill.OVERALL && xp != null && xp >= 0)
+			{
+				state.getSkillBaselines().put(skill.name(), xp);
+				state.getSkillLevelBaselines().put(skill.name(), SkillRewardPolicy.levelForXp(xp));
+			}
+		}
+		state.updateOverallXpBaseline(currentOverallXp);
+		persist();
+	}
+
 	public synchronized long awardNpcKill(int npcId, String name, int combatLevel)
 	{
 		return awardNpcKill(npcId, name, combatLevel, 1);
