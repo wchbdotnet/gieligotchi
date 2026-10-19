@@ -355,6 +355,18 @@ public class ProfileState
 		return true;
 	}
 
+	public int deleteAllSecretEggs()
+	{
+		int deleted = secretEggs.size();
+		secretEggs.clear();
+		if (activeEgg != null && activeEgg.isSecret())
+		{
+			activeEgg = null;
+			deleted++;
+		}
+		return deleted;
+	}
+
 	public EggState grantSecretEgg(SecretEggType type)
 	{
 		EggState egg = EggState.secret(type);

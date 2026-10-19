@@ -57,8 +57,10 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.Scrollable;
@@ -1531,8 +1533,14 @@ public class GieligotchiPanel extends PluginPanel
 		JButton minimize = styledButton(secretEggTrayMinimized ? "+" : "−", 12f);
 		minimize.setMargin(new Insets(0, 0, 0, 0));
 		minimize.setPreferredSize(new Dimension(24, 20));
-		minimize.setToolTipText(secretEggTrayMinimized ? "Expand Secret Egg Tray" : "Minimise Secret Egg Tray");
+		minimize.setToolTipText((secretEggTrayMinimized ? "Expand Secret Egg Tray" : "Minimise Secret Egg Tray")
+			+ " · Right-click to manage eggs");
 		minimize.addActionListener(event -> { secretEggTrayMinimized = !secretEggTrayMinimized; refresh(); });
+		JPopupMenu secretEggMenu = new JPopupMenu();
+		JMenuItem deleteAll = new JMenuItem("Delete all eggs");
+		deleteAll.addActionListener(event -> confirmDeleteAllSecretEggs(stored + (active ? 1 : 0)));
+		secretEggMenu.add(deleteAll);
+		minimize.setComponentPopupMenu(secretEggMenu);
 		JPanel right = new JPanel(new BorderLayout(4, 0));
 		right.setOpaque(false);
 		right.add(count, BorderLayout.CENTER);
@@ -1591,6 +1599,18 @@ public class GieligotchiPanel extends PluginPanel
 		panel.add(rows, BorderLayout.CENTER);
 		panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46 + rows.getPreferredSize().height));
 		return panel;
+	}
+
+	private void confirmDeleteAllSecretEggs(int count)
+	{
+		if (count <= 0) { return; }
+		String message = "Permanently delete all " + count + " Secret Egg" + (count == 1 ? "" : "s") + "?\n\n"
+			+ "This includes any Secret Egg currently incubating.\n"
+			+ "Regular eggs and companions will not be affected.\n\n"
+			+ "This cannot be undone.";
+		int choice = JOptionPane.showConfirmDialog(this, message, "Delete all Secret Eggs?",
+			JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+		if (choice == JOptionPane.YES_OPTION) { stateService.deleteAllSecretEggs(); }
 	}
 
 	private JPanel buildTray(ProfileState state)

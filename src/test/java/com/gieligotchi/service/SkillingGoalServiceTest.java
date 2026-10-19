@@ -22,6 +22,38 @@ import static org.junit.Assert.*;
 public class SkillingGoalServiceTest
 {
 	@Test
+	public void worldTransitionBaselineResetCannotAwardTemporaryWorldXp() throws Exception
+	{
+		Path directory = Files.createTempDirectory("gieligotchi-world-transition-test");
+		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+		try
+		{
+			ProfileStore store = new ProfileStore(new Gson(), executor, directory);
+			ProfileState initial = ProfileState.fresh("world-hop");
+			initial.updateOverallXpBaseline(10_000);
+			initial.getSkillBaselines().put(Skill.COOKING.name(), 10_000);
+			initial.getSkillLevelBaselines().put(Skill.COOKING.name(), SkillRewardPolicy.levelForXp(10_000));
+			store.save("world-hop", initial);
+			executor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+
+			GieligotchiStateService service = new GieligotchiStateService(store, new HatchService(null), new SaveCodec(new Gson()));
+			CountDownLatch loaded = new CountDownLatch(1);
+			service.addListener(() -> { if (service.getState() != null) { loaded.countDown(); } });
+			service.load("world-hop");
+			assertTrue(loaded.await(5, TimeUnit.SECONDS));
+
+			long hatchXpBefore = service.getState().getActiveEgg().getHatchXp();
+			service.synchronizeSkillBaselines(Collections.singletonMap(Skill.COOKING, 13_034_431), 13_034_431);
+
+			assertEquals(hatchXpBefore, service.getState().getActiveEgg().getHatchXp());
+			assertTrue(service.getState().getSecretEggs().isEmpty());
+			assertEquals(Integer.valueOf(13_034_431), service.getState().getSkillBaselines().get(Skill.COOKING.name()));
+			assertEquals(13_034_431L, service.getState().getOverallXpBaseline());
+		}
+		finally { executor.shutdownNow(); }
+	}
+
+	@Test
 	public void offlineSkillXpProgressesEggGoalOnceWithoutDoubleCountingBaseXp() throws Exception
 	{
 		Path directory = Files.createTempDirectory("gieligotchi-skilling-goal-test");
