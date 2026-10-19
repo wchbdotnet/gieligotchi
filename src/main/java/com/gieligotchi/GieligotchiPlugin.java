@@ -6,7 +6,9 @@ import com.gieligotchi.model.ProfileState;
 import com.gieligotchi.model.SecretEggType;
 import com.gieligotchi.model.Toy;
 import com.gieligotchi.service.ActivityRewardPolicy;
+import com.gieligotchi.service.ApexRewardPolicy;
 import com.gieligotchi.service.GieligotchiStateService;
+import com.gieligotchi.service.ItemAcquisitionGuard;
 import com.gieligotchi.ui.GieligotchiOverlay;
 import com.gieligotchi.ui.GieligotchiPanel;
 import com.gieligotchi.ui.HatchAnimationController;
@@ -33,7 +35,9 @@ import net.runelite.api.GameState;
 import net.runelite.api.Hitsplat;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.ItemID;
+import net.runelite.api.MenuAction;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
@@ -45,6 +49,10 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.events.WidgetClosed;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.events.StatChanged;
 import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
@@ -95,7 +103,12 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	private final Map<Integer, Integer> engagedNpcTicks = new HashMap<>();
 	private final Map<String, Long> recentActivityAwards = new HashMap<>();
 	private final Map<Integer, Integer> inventorySnapshot = new HashMap<>();
+	private final ItemAcquisitionGuard itemAcquisitionGuard = new ItemAcquisitionGuard();
 	private boolean inventorySnapshotReady;
+	private boolean raidRewardSeen;
+	private boolean lastLoadingIntoInstance;
+	private boolean tradeOpen;
+	private int ignoreTradeGainsUntilTick = -1;
 	private long lastPetEggAwardAt;
 	private final Runnable profileListener = this::onProfileChanged;
 	private Point overlayDragOffset;
@@ -191,6 +204,10 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		recentActivityAwards.clear();
 		inventorySnapshot.clear();
 		inventorySnapshotReady = false;
+		itemAcquisitionGuard.clear();
+		tradeOpen = false;
+		ignoreTradeGainsUntilTick = -1;
+		raidRewardSeen = false;
 		lastPetEggAwardAt = 0L;
 		log.info("Gieligotchi stopped");
 	}
@@ -257,6 +274,15 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
+		if (event.getGameState() == GameState.LOADING)
+		{
+			boolean inInstancedRegion = client.isInInstancedRegion();
+			if (inInstancedRegion != lastLoadingIntoInstance)
+			{
+				lastLoadingIntoInstance = inInstancedRegion;
+				raidRewardSeen = false;
+			}
+		}
 		if (event.getGameState() == GameState.LOGGED_IN) { loadCurrentProfile(); }
 		else if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
@@ -272,8 +298,63 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			recentActivityAwards.clear();
 			inventorySnapshot.clear();
 			inventorySnapshotReady = false;
+			itemAcquisitionGuard.clear();
+			tradeOpen = false;
+			ignoreTradeGainsUntilTick = -1;
+			raidRewardSeen = false;
+			lastLoadingIntoInstance = false;
 			hatchAnimation.reset();
 		}
+	}
+
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded event)
+	{
+		if (event == null) { return; }
+		if (event.getGroupId() == InterfaceID.TRADEMAIN || event.getGroupId() == InterfaceID.TRADECONFIRM)
+		{
+			tradeOpen = true;
+			return;
+		}
+		if (raidRewardSeen) { return; }
+		String rewardSource;
+		InventoryID inventoryId;
+		switch (event.getGroupId())
+		{
+			case InterfaceID.RAIDS_REWARDS:
+				rewardSource = ApexRewardPolicy.CHAMBERS;
+				inventoryId = InventoryID.CHAMBERS_OF_XERIC_CHEST;
+				break;
+			case InterfaceID.TOB_CHESTS:
+				rewardSource = ApexRewardPolicy.THEATRE;
+				inventoryId = InventoryID.THEATRE_OF_BLOOD_CHEST;
+				break;
+			case InterfaceID.TOA_CHESTS:
+				rewardSource = ApexRewardPolicy.TOMBS;
+				inventoryId = InventoryID.TOA_REWARD_CHEST;
+				break;
+			default:
+				return;
+		}
+		raidRewardSeen = true;
+		ItemContainer rewards = client.getItemContainer(inventoryId);
+		if (rewards == null) { return; }
+		for (Item item : rewards.getItems())
+		{
+			if (item != null && item.getId() >= 0 && item.getQuantity() > 0)
+			{
+				stateService.recordApexReward(rewardSource, item.getId(), item.getQuantity());
+			}
+		}
+	}
+
+	@Subscribe
+	public void onWidgetClosed(WidgetClosed event)
+	{
+		if (event == null || event.getGroupId() != InterfaceID.TRADEMAIN
+			&& event.getGroupId() != InterfaceID.TRADECONFIRM) { return; }
+		tradeOpen = false;
+		ignoreTradeGainsUntilTick = client.getTickCount() + 3;
 	}
 
 	@Subscribe
@@ -306,6 +387,12 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 			inventorySnapshotReady = true;
 			return;
 		}
+		if (tradeOpen || client.getTickCount() <= ignoreTradeGainsUntilTick)
+		{
+			inventorySnapshot.clear();
+			inventorySnapshot.putAll(current);
+			return;
+		}
 		// Moving an existing item out of the bank is not a fresh acquisition.
 		net.runelite.api.widgets.Widget bankItems = client.getWidget(12, 13);
 		if (bankItems != null && !bankItems.isHidden())
@@ -319,6 +406,7 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		for (Map.Entry<Integer, Integer> entry : current.entrySet())
 		{
 			int gained = entry.getValue() - inventorySnapshot.getOrDefault(entry.getKey(), 0);
+			gained = itemAcquisitionGuard.freshQuantity(entry.getKey(), gained, client.getTickCount());
 			if (gained > 0)
 			{
 				stateService.recordHeartfeltItem(entry.getKey(), gained,
@@ -328,6 +416,49 @@ public class GieligotchiPlugin extends Plugin implements MouseListener
 		}
 		inventorySnapshot.clear();
 		inventorySnapshot.putAll(current);
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event)
+	{
+		if (event == null || client.getLocalPlayer() == null) { return; }
+		String option = Text.removeTags(event.getMenuOption());
+		if ("Drop".equalsIgnoreCase(option) && event.getItemId() >= 0)
+		{
+			net.runelite.api.coords.WorldPoint location = client.getLocalPlayer().getWorldLocation();
+			int quantity = event.getWidget() == null ? 1 : Math.max(1, event.getWidget().getItemQuantity());
+			itemAcquisitionGuard.recordDrop(event.getItemId(), quantity, location.getX(), location.getY(),
+				location.getPlane(), client.getTickCount());
+			return;
+		}
+		if ("Remove".equalsIgnoreCase(option) && event.getItemId() >= 0
+			&& event.getWidgetId() >>> 16 == InterfaceID.WORNITEMS)
+		{
+			int quantity = event.getWidget() == null ? 1 : Math.max(1, event.getWidget().getItemQuantity());
+			itemAcquisitionGuard.recordTransfer(event.getItemId(), quantity, client.getTickCount());
+			return;
+		}
+		if ("Take".equalsIgnoreCase(option) || isGroundItemInteraction(event.getMenuAction()))
+		{
+			net.runelite.api.coords.WorldPoint location = net.runelite.api.coords.WorldPoint.fromScene(client,
+				event.getParam0(), event.getParam1(), client.getPlane());
+			if (location != null)
+			{
+				itemAcquisitionGuard.recordTake(event.getId(), location.getX(), location.getY(),
+					location.getPlane(), client.getTickCount());
+			}
+		}
+	}
+
+	private static boolean isGroundItemInteraction(MenuAction action)
+	{
+		return action == MenuAction.GROUND_ITEM_FIRST_OPTION
+			|| action == MenuAction.GROUND_ITEM_SECOND_OPTION
+			|| action == MenuAction.GROUND_ITEM_THIRD_OPTION
+			|| action == MenuAction.GROUND_ITEM_FOURTH_OPTION
+			|| action == MenuAction.GROUND_ITEM_FIFTH_OPTION
+			|| action == MenuAction.ITEM_USE_ON_GROUND_ITEM
+			|| action == MenuAction.WIDGET_TARGET_ON_GROUND_ITEM;
 	}
 
 	@Subscribe

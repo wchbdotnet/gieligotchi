@@ -601,6 +601,15 @@ public class GieligotchiStateService
 		if (companion.getHeartfeltWish().getProgress() != before) { persist(); fireChanged(); }
 	}
 
+	public synchronized void recordApexReward(String rewardSource, int itemId, long quantity)
+	{
+		CompanionInstance companion = state == null ? null : state.getActiveCompanion();
+		if (companion == null || companion.getHeartfeltWish() == null || quantity <= 0) { return; }
+		long before = companion.getHeartfeltWish().getProgress();
+		companion.recordApexReward(rewardSource, itemId, quantity);
+		if (companion.getHeartfeltWish().getProgress() != before) { persist(); fireChanged(); }
+	}
+
 	public synchronized boolean startEggSkillingGoal(Skill skill, int target)
 	{
 		if (state == null || !state.startEggSkillingGoal(skill, target)) { return false; }

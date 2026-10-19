@@ -1,5 +1,6 @@
 package com.gieligotchi.model;
 
+import com.gieligotchi.service.ApexRewardPolicy;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,6 +17,7 @@ public class HeartfeltWish
 	private long rewardXp;
 	private long rewardPoints;
 	private boolean apex;
+	private boolean apexVerified;
 	private boolean accepted;
 	private long offeredAt;
 	private List<HeartfeltStep> steps = new ArrayList<>();
@@ -41,14 +43,36 @@ public class HeartfeltWish
 	{
 		if (readiness == null) { readiness = Readiness.READY; }
 		if (steps == null) { steps = new ArrayList<>(); }
+		// Apex wishes previously trusted any matching inventory increase, including gear swaps.
+		// Unclaimed legacy progress has no trustworthy source, so migrate it back to zero once.
+		if (apex && !apexVerified)
+		{
+			for (HeartfeltStep step : steps) { step.reset(); }
+		}
 	}
 
 	public void accept() { accepted = true; }
 
 	public boolean recordItem(int itemId, long quantity, int x, int y, int plane)
 	{
-		if (!accepted || isComplete()) { return false; }
+		if (apex || !accepted || isComplete()) { return false; }
 		for (HeartfeltStep step : steps) { if (!step.isComplete() && step.recordItem(itemId, quantity, x, y, plane)) { return true; } }
+		return false;
+	}
+
+	public boolean recordApexReward(String rewardSource, int itemId, long quantity)
+	{
+		if (!apex || !accepted || isComplete() || quantity <= 0
+			|| !ApexRewardPolicy.matches(taskId, rewardSource, itemId)) { return false; }
+		for (HeartfeltStep step : steps)
+		{
+			if (!step.isComplete())
+			{
+				step.complete();
+				apexVerified = true;
+				return true;
+			}
+		}
 		return false;
 	}
 
@@ -76,6 +100,7 @@ public class HeartfeltWish
 	public boolean isComplete()
 	{
 		if (steps == null || steps.isEmpty()) { return false; }
+		if (apex && !apexVerified) { return false; }
 		for (HeartfeltStep step : steps) { if (!step.isComplete()) { return false; } }
 		return true;
 	}

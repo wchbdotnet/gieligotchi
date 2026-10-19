@@ -211,6 +211,8 @@ public class CompanionInstance
 
 	public void recordHeartfeltItem(int itemId, long quantity, int x, int y, int plane)
 	{ if (heartfeltWish != null) { heartfeltWish.recordItem(itemId, quantity, x, y, plane); } }
+	public void recordApexReward(String rewardSource, int itemId, long quantity)
+	{ if (heartfeltWish != null) { heartfeltWish.recordApexReward(rewardSource, itemId, quantity); } }
 	public void recordHeartfeltSkill(String skill, long xp, int x, int y, int plane)
 	{ if (heartfeltWish != null) { heartfeltWish.recordSkill(skill, xp, x, y, plane); } }
 	public void recordHeartfeltNpc(String npcName)

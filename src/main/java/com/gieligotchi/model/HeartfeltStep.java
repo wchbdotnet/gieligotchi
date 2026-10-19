@@ -104,6 +104,7 @@ public class HeartfeltStep
 	}
 
 	public void complete() { progress = Math.max(1, target); }
+	public void reset() { progress = 0; }
 	public boolean isComplete() { return progress >= Math.max(1, target); }
 	public Kind getKind() { return kind; }
 	public String getLabel() { return label; }

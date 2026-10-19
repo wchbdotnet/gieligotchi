@@ -8,6 +8,7 @@ import com.gieligotchi.model.HeartfeltWish;
 import com.gieligotchi.model.Palette;
 import com.gieligotchi.model.SpeciesRarity;
 import com.gieligotchi.service.HeartfeltCatalogue;
+import com.gieligotchi.service.ApexRewardPolicy;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -78,6 +79,66 @@ public class HeartfeltWishTest
 		assertEquals(1_000, apex.getRewardPoints());
 		assertFalse(ordinary.isApex());
 		assertTrue(apex.isApex());
+	}
+
+	@Test
+	public void apexWishesIgnoreRawInventoryChangesAndOtherRaidRewards()
+	{
+		String[] sources = {ApexRewardPolicy.CHAMBERS, ApexRewardPolicy.THEATRE, ApexRewardPolicy.TOMBS};
+		int[] validPurples = {20997, 22324, 25975};
+		for (int i = 0; i < sources.length; i++)
+		{
+			HeartfeltWish wish = HeartfeltCatalogue.force(sources[i], levels("ATTACK", 99), 2_277);
+			wish.accept();
+			assertFalse(wish.recordItem(validPurples[i], 1, 0, 0, 0));
+			assertFalse(wish.recordApexReward(sources[(i + 1) % sources.length], validPurples[i], 1));
+			assertFalse(wish.isComplete());
+			assertTrue(wish.recordApexReward(sources[i], validPurples[i], 1));
+			assertTrue(wish.isComplete());
+		}
+	}
+
+	@Test
+	public void tombsTertiariesAreNotApexPurples()
+	{
+		int[] tertiaryRewards = {27279, 27283, 27285, 27289, 27293, 30893};
+		for (int itemId : tertiaryRewards)
+		{
+			HeartfeltWish wish = HeartfeltCatalogue.force(ApexRewardPolicy.TOMBS,
+				levels("ATTACK", 99), 2_277);
+			wish.accept();
+			assertFalse("Tertiary item " + itemId + " must not complete a ToA purple wish",
+				wish.recordApexReward(ApexRewardPolicy.TOMBS, itemId, 1));
+			assertFalse(wish.isComplete());
+		}
+	}
+
+	@Test
+	public void chambersUsesBaseAncestralNotTwistedCosmetics()
+	{
+		HeartfeltWish baseDrop = HeartfeltCatalogue.force(ApexRewardPolicy.CHAMBERS,
+			levels("MAGIC", 99), 2_277);
+		baseDrop.accept();
+		assertTrue(baseDrop.recordApexReward(ApexRewardPolicy.CHAMBERS, 21018, 1));
+		assertTrue(baseDrop.isComplete());
+
+		HeartfeltWish cosmetic = HeartfeltCatalogue.force(ApexRewardPolicy.CHAMBERS,
+			levels("MAGIC", 99), 2_277);
+		cosmetic.accept();
+		assertFalse(cosmetic.recordApexReward(ApexRewardPolicy.CHAMBERS, 24664, 1));
+		assertFalse(cosmetic.isComplete());
+	}
+
+	@Test
+	public void legacyUnverifiedApexProgressIsResetDuringRepair()
+	{
+		HeartfeltWish wish = HeartfeltCatalogue.force(ApexRewardPolicy.TOMBS,
+			levels("ATTACK", 99), 2_277);
+		wish.accept();
+		wish.getSteps().get(0).complete();
+		assertFalse(wish.isComplete());
+		wish.repair();
+		assertEquals(0, wish.getSteps().get(0).getProgress());
 	}
 
 	@Test

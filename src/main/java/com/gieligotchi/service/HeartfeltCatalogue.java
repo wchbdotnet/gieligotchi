@@ -146,7 +146,7 @@ public final class HeartfeltCatalogue
 			"Temple of the Eye and 27 Runecraft", "RUNECRAFT", 27, 650, HeartfeltTask.Scale.SIMPLE,
 			HeartfeltStep.activity("Rifts closed", 5, "GUARDIANS_OF_THE_RIFT")));
 		tasks.add(task("sepulchre_three", "Three Perfect Descents", "Complete Hallowed Sepulchre floor 5 three times.",
-			"Sins of the Father and 92 Agility", "AGILITY", 92, 1_850, HeartfeltTask.Scale.LONG,
+			"Sins of the Father and 87 Agility", "AGILITY", 87, 1_850, HeartfeltTask.Scale.LONG,
 			HeartfeltStep.activity("Floor 5 completions", 3, "HALLOWED_SEPULCHRE")));
 
 		// Boss outings are specific named targets rather than broad combat counters.
@@ -195,13 +195,13 @@ public final class HeartfeltCatalogue
 		// The only 1,000-point class: a personal raid unique entering the inventory.
 		tasks.add(task("cox_purple", "A Purple from the Chambers", "Receive a Chambers of Xeric unique in your name.",
 			"Chambers of Xeric", null, 0, 2_000, HeartfeltTask.Scale.APEX,
-			HeartfeltStep.items("Chambers unique received", 1, 13652, 20997, 21000, 21003, 21012, 21015, 24664, 24668, 24666, 21034, 21079, 21043)));
+			HeartfeltStep.items("Chambers unique received", 1, ApexRewardPolicy.itemIds(ApexRewardPolicy.CHAMBERS))));
 		tasks.add(task("tob_purple", "A Purple from the Theatre", "Receive a Theatre of Blood unique in your name.",
 			"Priest in Peril and a Theatre of Blood team", null, 0, 2_000, HeartfeltTask.Scale.APEX,
-			HeartfeltStep.items("Theatre unique received", 1, 22324, 22326, 22327, 22328, 22477, 22481, 22486)));
+			HeartfeltStep.items("Theatre unique received", 1, ApexRewardPolicy.itemIds(ApexRewardPolicy.THEATRE))));
 		tasks.add(task("toa_purple", "A Purple from the Tombs", "Receive a Tombs of Amascut unique in your name.",
 			"Beneath Cursed Sands", null, 0, 2_000, HeartfeltTask.Scale.APEX,
-			HeartfeltStep.items("Tombs unique received", 1, 25975, 25985, 26219, 27226, 27229, 27232, 27277, 27279, 27283, 27285, 27289, 27293, 30893)));
+			HeartfeltStep.items("Tombs unique received", 1, ApexRewardPolicy.itemIds(ApexRewardPolicy.TOMBS))));
 		return Collections.unmodifiableList(tasks);
 	}
 
