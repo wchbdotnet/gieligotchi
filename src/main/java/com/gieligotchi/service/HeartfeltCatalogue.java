@@ -87,7 +87,7 @@ public final class HeartfeltCatalogue
 			HeartfeltStep.items("Iron mined at Al Kharid", 100, 440).inArea(3290, 3325, 3280, 3325, 0)));
 		tasks.add(task("mining_guild_coal", "Below Falador", "Mine 150 coal inside the Mining Guild.",
 			"60 Mining", "MINING", 60, 700, HeartfeltTask.Scale.MULTI,
-			HeartfeltStep.items("Coal mined in the Guild", 150, 453).inArea(3010, 3055, 9720, 9765, 0)));
+			HeartfeltStep.items("Coal mined in the Guild", 150, 453).inArea(3000, 3055, 9680, 9765, 0)));
 		tasks.add(task("castlewars_diamonds", "A Banker's Best Friend", "Cut 100 diamonds inside Castle Wars bank.",
 			"43 Crafting and 100 uncut diamonds", "CRAFTING", 43, 600, HeartfeltTask.Scale.MULTI,
 			HeartfeltStep.items("Diamonds cut at Castle Wars", 100, 1601).inArea(2430, 2458, 3070, 3105, 0)));
@@ -153,9 +153,9 @@ public final class HeartfeltCatalogue
 		tasks.add(task("giant_mole_five", "Under Falador", "Defeat the Giant Mole five times.",
 			"A light source and a spade", null, 0, 700, HeartfeltTask.Scale.SIMPLE,
 			HeartfeltStep.kills("Giant Mole defeated", 5, "Giant Mole")));
-		tasks.add(task("barrows_unique", "A Brother's Heirloom", "Obtain a Barrows armour piece after accepting this wish.",
+		tasks.add(task("barrows_unique", "A Brother's Heirloom", "Obtain a Barrows weapon or armour piece after accepting this wish.",
 			"Priest in Peril", null, 0, 950, HeartfeltTask.Scale.LONG,
-			HeartfeltStep.items("Barrows armour obtained", 1, 4708, 4710, 4712, 4714, 4716, 4718, 4720, 4722, 4724, 4726, 4728, 4730, 4732, 4734, 4736, 4738, 4745, 4747, 4749, 4751, 4753, 4755, 4757, 4759)));
+			HeartfeltStep.items("Barrows weapon or armour obtained", 1, 4708, 4710, 4712, 4714, 4716, 4718, 4720, 4722, 4724, 4726, 4728, 4730, 4732, 4734, 4736, 4738, 4745, 4747, 4749, 4751, 4753, 4755, 4757, 4759)));
 		tasks.add(task("zulrah_ten", "Ten Coils", "Defeat Zulrah ten times.",
 			"Regicide", null, 0, 1_500, HeartfeltTask.Scale.MULTI,
 			HeartfeltStep.kills("Zulrah defeated", 10, "Zulrah")));
@@ -181,7 +181,7 @@ public final class HeartfeltCatalogue
 			HeartfeltStep.items("Rift unique obtained", 1, 26792, 26798, 26807, 26809, 26811, 26813, 26815, 26820, 26822, 26850, 26852, 26854, 26856, 26908, 26910, 26912)));
 		tasks.add(task("mole_trophies", "Claw and Hide", "Obtain both a mole claw and mole skin after accepting.",
 			"Access to the Giant Mole", null, 0, 700, HeartfeltTask.Scale.MULTI,
-			HeartfeltStep.items("Mole claw obtained", 1, 7416), HeartfeltStep.items("Mole skin obtained", 1, 7418)));
+			HeartfeltStep.items("Mole claw obtained", 1, 7416, 7417), HeartfeltStep.items("Mole skin obtained", 1, 7418, 7419)));
 		tasks.add(task("zulrah_unique", "A Serpentine Keepsake", "Obtain a unique from Zulrah after accepting this wish.",
 			"Regicide", null, 0, 1_500, HeartfeltTask.Scale.LONG,
 			HeartfeltStep.items("Zulrah unique obtained", 1, 6571, 12922, 12927, 12932, 12934, 12938)));
