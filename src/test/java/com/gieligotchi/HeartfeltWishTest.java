@@ -70,6 +70,49 @@ public class HeartfeltWishTest
 	}
 
 	@Test
+	public void notedGiantMoleDropsCompleteTheMoleTrophiesWish()
+	{
+		HeartfeltWish wish = HeartfeltCatalogue.force("mole_trophies", Collections.emptyMap(), 1_500);
+		wish.accept();
+		assertTrue(wish.recordItem(7417, 1, 0, 0, 0));
+		assertTrue(wish.recordItem(7419, 1, 0, 0, 0));
+		assertTrue(wish.isComplete());
+	}
+
+	@Test
+	public void barrowsWishNamesAndAcceptsWeaponsAsWellAsArmour()
+	{
+		HeartfeltWish wish = HeartfeltCatalogue.force("barrows_unique", Collections.emptyMap(), 1_500);
+		assertTrue(wish.getDescription().contains("weapon or armour"));
+		assertTrue(wish.getSteps().get(0).getLabel().contains("weapon or armour"));
+		wish.accept();
+		assertTrue(wish.recordItem(4718, 1, 0, 0, 0));
+		assertTrue(wish.isComplete());
+	}
+
+	@Test
+	public void miningGuildCoalCountsAcrossTheEntireUndergroundGuild()
+	{
+		HeartfeltWish southernAmethyst = HeartfeltCatalogue.force("mining_guild_coal",
+			levels("MINING", 92), 1_500);
+		southernAmethyst.accept();
+		assertTrue(southernAmethyst.recordItem(453, 150, 3030, 9705, 0));
+		assertTrue(southernAmethyst.isComplete());
+
+		HeartfeltWish westernAmethyst = HeartfeltCatalogue.force("mining_guild_coal",
+			levels("MINING", 92), 1_500);
+		westernAmethyst.accept();
+		assertTrue(westernAmethyst.recordItem(453, 150, 3005, 9715, 0));
+		assertTrue(westernAmethyst.isComplete());
+
+		HeartfeltWish outsideGuild = HeartfeltCatalogue.force("mining_guild_coal",
+			levels("MINING", 92), 1_500);
+		outsideGuild.accept();
+		assertFalse(outsideGuild.recordItem(453, 150, 2999, 9715, 0));
+		assertFalse(outsideGuild.isComplete());
+	}
+
+	@Test
 	public void ordinaryAndApexPointCapsStayIsolated()
 	{
 		Map<String, Integer> max = levels("FIREMAKING", 99);
